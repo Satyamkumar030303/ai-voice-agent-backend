@@ -43,11 +43,22 @@ exports.loginUser = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    res.status(200).json({
-      message: "Login successful ✅",
-      token,
-      user,
-    });
+        const safeUser = {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role || "user",
+        twilio: {
+            phoneNumber: user.twilio?.phoneNumber,
+            isConnected: user.twilio?.isConnected,
+        },
+        };
+
+        res.status(200).json({
+        message: "Login successful ✅",
+        token,
+        user: safeUser,
+        });
   } catch (error) {
     res.status(500).json({ message: "Server error ❌", error });
   }
