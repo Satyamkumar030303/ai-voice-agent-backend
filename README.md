@@ -129,7 +129,52 @@ npm run dev
   "to": "+919XXXXXXXXX"
 }
 ```
+🌐 Ngrok Setup (IMPORTANT)
 
+Twilio requires a public URL, so we use ngrok.
+
+Install Ngrok
+
+https://ngrok.com/download
+
+Add Auth Token
+ngrok config add-authtoken YOUR_TOKEN
+Start Ngrok
+ngrok http 5000
+Example Output
+https://abc123.ngrok-free.dev -> http://localhost:5000
+Twilio Webhook Setup
+
+Go to Twilio Console → Phone Numbers → Voice
+
+Set:
+
+https://abc123.ngrok-free.dev/api/twilio/voice
+
+Method:
+
+POST
+🎤 Twilio Voice Webhook Example
+app.post("/api/twilio/voice", (req, res) => {
+  res.set("Content-Type", "text/xml");
+
+  res.send(`
+    <Response>
+      <Say>Hello from AI Voice Agent 🚀</Say>
+    </Response>
+  `);
+});
+🔄 System Flow
+User → Backend API → MongoDB
+                    ↓
+                Knowledge Base
+                    ↓
+                Gemini AI (RAG)
+                    ↓
+                Response
+
+Call Flow:
+User → Backend → Twilio → Webhook (ngrok) → Backend → Voice Response
 ---
 
 ## 🧠 System Architecture
