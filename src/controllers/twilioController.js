@@ -46,6 +46,7 @@ exports.makeCall = async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
 
+    // ✅ Check Twilio connected
     if (!user.twilio || !user.twilio.isConnected) {
       return res.status(400).json({
         message: "Twilio not connected ❌",
@@ -54,11 +55,22 @@ exports.makeCall = async (req, res) => {
 
     const { accountSid, authToken, phoneNumber } = user.twilio;
 
+    // ✅ Get number from request
+    const { to } = req.body;
+
+    if (!to) {
+      return res.status(400).json({
+        message: "Phone number (to) is required ❌",
+      });
+    }
+
+    // ✅ Create Twilio client
     const client = twilio(accountSid, authToken);
 
+    // ✅ Make call
     const call = await client.calls.create({
-      to: "+918595974252", // ✅ verified number
-      from: phoneNumber,   // ✅ Twilio number
+      to: to,                  // 🔥 dynamic number
+      from: phoneNumber,       // Twilio number
       url: "https://flo-gaslighted-unartistically.ngrok-free.dev/api/twilio/voice"
     });
 
@@ -68,7 +80,7 @@ exports.makeCall = async (req, res) => {
     });
 
   } catch (error) {
-    console.log(error);
+    console.log("CALL ERROR:", error);
 
     res.status(500).json({
       message: "Call failed ❌",
