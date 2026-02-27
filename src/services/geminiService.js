@@ -12,4 +12,14 @@ async function askGemini(prompt) {
   return result.response.text();
 }
 
-module.exports = askGemini;
+const embeddingModel = genAI.getGenerativeModel({ 
+  model: "text-embedding-004" 
+});
+
+async function embedGemini(text) {
+  const result = await embeddingModel.embedContent(text);
+  return result.embedding.values; // vector array return karega
+}
+
+
+module.exports = { askGemini, embedGemini };
