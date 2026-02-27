@@ -26,8 +26,9 @@ const agentSchema = new mongoose.Schema(
     // future use (PDF knowledge base)
     knowledgeBase: [
       {
-        type: String, // we will store chunks later
-      },
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "KnowledgeBase"
+  }
     ],
   },
   { timestamps: true }
