@@ -4,7 +4,7 @@ const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
 const upload = require("../middleware/uploadMiddleware");
 
-const { 
+const { updateAgent,
         createAgent,
         getAgents,
         getAgentById,
@@ -24,6 +24,9 @@ router.get("/:id", protect, getAgentById);
 
 // Delete agent
 router.delete("/:id", protect, deleteAgent);
+
+// Update agent
+router.put("/:id", protect, updateAgent);
 
 // Upload PDF
 router.post("/:id/upload-pdf", protect, upload.single("file"), uploadPDF);
