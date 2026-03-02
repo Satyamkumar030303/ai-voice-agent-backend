@@ -9,12 +9,12 @@ const {
   getAgents,
   getAgentById,
   deleteAgent,
+  updateAgent,
   uploadPDF,
   attachKBToAgent,
   getKnowledgeBase,
   askAgent,
 } = require("../controllers/agentController");
-
 
 // =======================
 // 🟢 AGENT ROUTES
@@ -32,16 +32,18 @@ router.get("/:id", protect, getAgentById);
 // Delete agent
 router.delete("/:id", protect, deleteAgent);
 
+// Update agent
+router.put("/:id", protect, updateAgent);
 
 // =======================
 // 🟢 KNOWLEDGE BASE ROUTES
 // =======================
 
-// Upload PDF (independent of agent)
+// Upload PDF
 router.post(
   "/upload",
   protect,
-  upload.single("file"), // ⚠️ MUST be "file"
+  upload.single("file"),
   uploadPDF
 );
 
@@ -51,13 +53,11 @@ router.get("/kb", protect, getKnowledgeBase);
 // Attach KB to agent
 router.post("/attach-kb", protect, attachKBToAgent);
 
-
 // =======================
 // 🟢 AI ROUTE
 // =======================
 
 // Ask agent
 router.post("/:id/ask", protect, askAgent);
-
 
 module.exports = router;

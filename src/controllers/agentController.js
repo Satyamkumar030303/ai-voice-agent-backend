@@ -112,7 +112,45 @@ exports.deleteAgent = async (req, res) => {
     });
   }
 };
+//=====================================================
+// update agent details (name, systemPrompt, greeting)
 
+exports.updateAgent = async (req, res) => {
+  try {
+    const { name, systemPrompt, greeting } = req.body;
+
+    const agent = await Agent.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        user: req.user.userId,
+      },
+      {
+        name,
+        systemPrompt,
+        greeting,
+      },
+      { new: true }
+    );
+
+    if (!agent) {
+      return res.status(404).json({
+        message: "Agent not found ❌",
+      });
+    }
+
+    res.json({
+      message: "Agent updated successfully ✅",
+      agent,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to update agent ❌",
+      error: error.message,
+    });
+  }
+};
+
+//=====================================================
 
 // =======================
 // 🟢 UPLOAD PDF (INDEPENDENT)
