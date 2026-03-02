@@ -15,8 +15,11 @@ exports.protect = (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    console.log("DECODED:", decoded);
     // Attach userId to request
-    req.user = decoded;
+   req.user = {
+  _id: decoded.userId
+};
 
     next();
   } catch (error) {
