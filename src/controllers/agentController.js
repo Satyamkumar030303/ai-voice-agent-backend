@@ -1,12 +1,10 @@
 const Agent = require("../models/Agent");
 const KnowledgeBase = require("../models/KnowledgeBase");
 const KnowledgeChunk = require("../models/KnowledgeChunk");
-const {askGemini , embedGemini} = require("../services/geminiService");
+const { askGemini, embedGemini } = require("../services/geminiService");
 
 const pdfParse = require("pdf-parse");
 const chunkText = require("../utils/chunkText");
-const searchChunks = require("../utils/searchChunks");
-
 
 // =======================
 // 🟢 CREATE AGENT
@@ -16,19 +14,23 @@ exports.createAgent = async (req, res) => {
     const { name, systemPrompt, greeting } = req.body;
 
     const agent = await Agent.create({
-      user: req.user.userId,
+      user: req.user._id, // ✅ FIXED
       name,
       systemPrompt,
       greeting,
-      knowledgeBase: [], // Yahan singular kar diya
+      knowledgeBase: [],
     });
 
     res.status(201).json({
       message: "Agent created successfully ✅",
       agent,
     });
+
   } catch (error) {
-    res.status(500).json({ message: "Failed to create agent ❌", error: error.message });
+    res.status(500).json({
+      message: "Failed to create agent ❌",
+      error: error.message
+    });
   }
 };
 
@@ -39,7 +41,7 @@ exports.createAgent = async (req, res) => {
 exports.getAgents = async (req, res) => {
   try {
     const agents = await Agent.find({
-      user: req.user.userId,
+      user: req.user._id, // ✅ FIXED
     })
       .populate("knowledgeBase")
       .sort({ createdAt: -1 });
@@ -62,7 +64,7 @@ exports.getAgentById = async (req, res) => {
   try {
     const agent = await Agent.findOne({
       _id: req.params.id,
-      user: req.user.userId,
+      user: req.user._id, // ✅ FIXED
     }).populate("knowledgeBase");
 
     if (!agent) {
@@ -89,7 +91,7 @@ exports.deleteAgent = async (req, res) => {
   try {
     const agent = await Agent.findOneAndDelete({
       _id: req.params.id,
-      user: req.user.userId,
+      user: req.user._id, // ✅ FIXED
     });
 
     if (!agent) {
@@ -109,9 +111,11 @@ exports.deleteAgent = async (req, res) => {
     });
   }
 };
-//=====================================================
-// update agent details (name, systemPrompt, greeting)
 
+
+// =======================
+// 🟢 UPDATE AGENT
+// =======================
 exports.updateAgent = async (req, res) => {
   try {
     const { name, systemPrompt, greeting } = req.body;
@@ -119,13 +123,9 @@ exports.updateAgent = async (req, res) => {
     const agent = await Agent.findOneAndUpdate(
       {
         _id: req.params.id,
-        user: req.user.userId,
+        user: req.user._id, // ✅ FIXED
       },
-      {
-        name,
-        systemPrompt,
-        greeting,
-      },
+      { name, systemPrompt, greeting },
       { new: true }
     );
 
@@ -139,6 +139,7 @@ exports.updateAgent = async (req, res) => {
       message: "Agent updated successfully ✅",
       agent,
     });
+
   } catch (error) {
     res.status(500).json({
       message: "Failed to update agent ❌",
@@ -147,10 +148,9 @@ exports.updateAgent = async (req, res) => {
   }
 };
 
-//=====================================================
 
 // =======================
-// 🟢 UPLOAD PDF (Embeddings ke sath)
+// 🟢 UPLOAD PDF
 // =======================
 exports.uploadPDF = async (req, res) => {
   try {
@@ -161,28 +161,28 @@ exports.uploadPDF = async (req, res) => {
     const data = await pdfParse(req.file.buffer);
     const chunks = chunkText(data.text);
 
-    // 1. Pehle KnowledgeBase (Parent folder) banao
     const kb = await KnowledgeBase.create({
-      user: req.user.userId,
+      user: req.user._id, // ✅ FIXED
       fileName: req.file.originalname,
     });
+    console.log("CREATED KB:", kb);
 
-    // 2. Har chunk ka embedding generate karo aur array mein daalo
     const chunkDocs = [];
+
     for (const text of chunks) {
       const embedding = await embedGemini(text);
+
       chunkDocs.push({
         knowledgeBaseId: kb._id,
-        text: text,
-        embedding: embedding
+        text,
+        embedding,
       });
     }
 
-    // 3. Ek sath saare chunks aur unke vectors save kar do (Fast performance)
     await KnowledgeChunk.insertMany(chunkDocs);
 
     res.json({
-      message: "PDF uploaded and embeddings stored successfully ✅",
+      message: "PDF uploaded successfully ✅",
       knowledgeBase: kb,
     });
 
@@ -194,6 +194,7 @@ exports.uploadPDF = async (req, res) => {
   }
 };
 
+
 // =======================
 // 🟢 ATTACH KB TO AGENT
 // =======================
@@ -203,14 +204,13 @@ exports.attachKBToAgent = async (req, res) => {
 
     const agent = await Agent.findOne({
       _id: agentId,
-      user: req.user.userId,
+      user: req.user._id, // ✅ FIXED
     });
 
     if (!agent) {
       return res.status(404).json({ message: "Agent not found ❌" });
     }
 
-    // Yahan singular name use kiya
     if (agent.knowledgeBase.includes(kbId)) {
       return res.json({ message: "Already attached ⚠️" });
     }
@@ -218,25 +218,43 @@ exports.attachKBToAgent = async (req, res) => {
     agent.knowledgeBase.push(kbId);
     await agent.save();
 
-    res.json({ message: "Knowledge base attached successfully ✅" });
+    res.json({ message: "Knowledge base attached ✅" });
+
   } catch (error) {
-    res.status(500).json({ message: "Failed to attach KB ❌", error: error.message });
+    res.status(500).json({
+      message: "Failed to attach KB ❌",
+      error: error.message
+    });
   }
 };
 
 
 // =======================
-// 🟢 GET USER KBs
+// 🟢 GET KBs
 // =======================
+// const mongoose = require("mongoose");
+
+const mongoose = require("mongoose");
+
 exports.getKnowledgeBase = async (req, res) => {
   try {
+    console.log("REQ.USER:", req.user);
+
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: "Unauthorized ❌" });
+    }
+
+    // ✅ NO conversion
     const kbs = await KnowledgeBase.find({
-      user: req.user.userId,
-    }).sort({ createdAt: -1 });
+      user: req.user._id,
+    }).lean(); // 👈 IMPORTANT
+
+    console.log("KBS FOUND:", kbs);
 
     res.json({ kbs });
 
   } catch (error) {
+    console.error("🔥 REAL ERROR:", error);
     res.status(500).json({
       message: "Failed to fetch KB ❌",
       error: error.message,
@@ -244,56 +262,45 @@ exports.getKnowledgeBase = async (req, res) => {
   }
 };
 
-
 // =======================
-// 🟢 ASK AGENT (RAG)
+// 🟢 ASK AGENT
 // =======================
 exports.askAgent = async (req, res) => {
   try {
     const { question } = req.body;
 
-    // Agent ko fetch karo (populate ki zaroorat nahi vector search ke liye)
     const agent = await Agent.findById(req.params.id);
 
     if (!agent) {
       return res.status(404).json({ message: "Agent not found ❌" });
     }
 
-    // Check karo ki agent ke paas kam se kam ek KnowledgeBase attached ho
-    if (!agent.knowledgeBase || agent.knowledgeBase.length === 0) {
-      return res.status(400).json({ 
-        message: "Please attach a Knowledge Base to this agent first ⚠️" 
+    if (!agent.knowledgeBase.length) {
+      return res.status(400).json({
+        message: "Attach KB first ⚠️"
       });
     }
 
-    // 1. Question ka vector banao
     const questionEmbedding = await embedGemini(question);
 
-    // 2. Vector search karo
     const matchedChunks = await KnowledgeChunk.aggregate([
       {
         $vectorSearch: {
-          index: "vector_index", 
+          index: "vector_index",
           path: "embedding",
           queryVector: questionEmbedding,
           numCandidates: 100,
           limit: 5,
           filter: {
-            // Yahan agent.knowledgeBase array pass kar rahe hain
-            knowledgeBaseId: { $in: agent.knowledgeBase } 
+            knowledgeBaseId: { $in: agent.knowledgeBase }
           }
         }
       }
     ]);
 
-    // 3. Context combine karo
-    const context = matchedChunks.map(chunk => chunk.text).join("\n\n");
+    const context = matchedChunks.map(c => c.text).join("\n\n");
 
-    // 4. Gemini se pucho
     const prompt = `
-You are an AI assistant. Use the following context to answer the question. 
-If the answer is not present in the context, say you don't know.
-
 Context:
 ${context}
 
@@ -306,6 +313,9 @@ ${question}
     res.json({ answer });
 
   } catch (error) {
-    res.status(500).json({ message: "Failed to get answer ❌", error: error.message });
+    res.status(500).json({
+      message: "Failed to get answer ❌",
+      error: error.message
+    });
   }
 };

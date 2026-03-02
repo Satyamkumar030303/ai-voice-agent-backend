@@ -17,47 +17,26 @@ const {
 } = require("../controllers/agentController");
 
 // =======================
-// 🟢 AGENT ROUTES
-// =======================
-
-// Create Agent
-router.post("/", protect, createAgent);
-
-// Get all agents
-router.get("/", protect, getAgents);
-
-// Get single agent
-router.get("/:id", protect, getAgentById);
-
-// Delete agent
-router.delete("/:id", protect, deleteAgent);
-
-// Update agent
-router.put("/:id", protect, updateAgent);
-
-// =======================
 // 🟢 KNOWLEDGE BASE ROUTES
 // =======================
 
-// Upload PDF
-router.post(
-  "/upload",
-  protect,
-  upload.single("file"),
-  uploadPDF
-);
-
-// Get all user PDFs
-router.get("/kb", protect, getKnowledgeBase);
-
-// Attach KB to agent
+router.post("/upload", protect, upload.single("file"), uploadPDF);
+router.get("/kb", protect, getKnowledgeBase); // ✅ FIRST
 router.post("/attach-kb", protect, attachKBToAgent);
+
+// =======================
+// 🟢 AGENT ROUTES
+// =======================
+
+router.post("/", protect, createAgent);
+router.get("/", protect, getAgents);
+router.get("/:id", protect, getAgentById); // ✅ AFTER /kb
+router.delete("/:id", protect, deleteAgent);
+router.put("/:id", protect, updateAgent);
 
 // =======================
 // 🟢 AI ROUTE
 // =======================
 
-// Ask agent
 router.post("/:id/ask", protect, askAgent);
-
 module.exports = router;
