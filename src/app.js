@@ -21,7 +21,8 @@ app.all("/api/twilio/voice", (req, res) => {
 
   res.send(`
     <Response>
-      <Say>Hello Satyam, your AI voice agent is live!</Say>
+      <Say>Hello Satyam, your AI voice agent is live!
+      Hardik Big BRO is MAD 😎</Say>
     </Response>
   `);
 });
