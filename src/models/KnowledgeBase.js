@@ -6,7 +6,8 @@ const knowledgeBaseSchema = new mongoose.Schema({
     ref: "User",
   },
   fileName: String,
-  chunks: [String],
+  // chunks: [String],
+  chunks: [{ type: mongoose.Schema.Types.ObjectId, ref: "KnowledgeChunk" }],
 }, { timestamps: true });
 
 module.exports = mongoose.model("KnowledgeBase", knowledgeBaseSchema);
