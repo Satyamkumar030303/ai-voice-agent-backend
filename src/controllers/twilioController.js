@@ -14,7 +14,7 @@ exports.connectTwilio = async (req, res) => {
 
     // save in DB
     const user = await User.findByIdAndUpdate(
-      req.user.userId,
+      req.user._id,
       {
         twilio: {
           accountSid,
@@ -44,7 +44,7 @@ exports.connectTwilio = async (req, res) => {
 
 exports.makeCall = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId);
+    const user = await User.findById(req.user._id);
 
     // ✅ Check Twilio connected
     if (!user.twilio || !user.twilio.isConnected) {
