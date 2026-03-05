@@ -4,6 +4,7 @@ const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
 const upload = require("../middleware/uploadMiddleware");
 
+
 const {
   createAgent,
   getAgents,
@@ -14,6 +15,7 @@ const {
   attachKBToAgent,
   getKnowledgeBase,
   askAgent,
+  deleteKB, // deleteKB for knowledge base
 } = require("../controllers/agentController");
 
 // =======================
@@ -23,6 +25,11 @@ const {
 router.post("/upload", protect, upload.single("file"), uploadPDF);
 router.get("/kb", protect, getKnowledgeBase); // ✅ FIRST
 router.post("/attach-kb", protect, attachKBToAgent);
+// Add deleteKB to your destructuring at the top
+
+
+// Update the route line:
+router.delete("/kb/:id", protect, deleteKB);
 
 // =======================
 // 🟢 AGENT ROUTES
