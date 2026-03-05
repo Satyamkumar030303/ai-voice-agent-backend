@@ -319,3 +319,19 @@ ${question}
     });
   }
 };
+
+//  TO Delete Knowledge Base
+exports.deleteKB = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await KnowledgeBase.findByIdAndDelete(id);
+        
+        if (!result) {
+            return res.status(404).json({ message: "File not found" });
+        }
+        
+        res.status(200).json({ message: "Deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
