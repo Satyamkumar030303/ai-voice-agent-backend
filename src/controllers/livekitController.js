@@ -1,4 +1,5 @@
 const { SipClient, AccessToken } = require("livekit-server-sdk");
+const Agent = require("../models/Agent");
 
 const LIVEKIT_URL = process.env.LIVEKIT_URL;
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
@@ -89,9 +90,10 @@ exports.createOutboundCall = async (req, res) => {
       return res.status(500).json({
         error: `LiveKit config missing: ${missing.join(", ")}`,
       });
+      
     }
 
-    const { phoneNumber, fromNumber } = req.body;
+    const { phoneNumber, fromNumber, agentId } = req.body;
     const normalizedPhone = (phoneNumber || "").trim();
 
     if (!normalizedPhone) {
@@ -102,6 +104,18 @@ exports.createOutboundCall = async (req, res) => {
     if (!isE164(normalizedPhone)) {
       return res.status(400).json({
         error: "phoneNumber must be in E.164 format (example: +14155550123).",
+      });
+    }
+    if (!agentId) {
+      return res.status(400).json({
+        error: "agentId is required.",
+      });
+    }
+
+    const agent = await Agent.findById(agentId).select("_id name");
+    if (!agent) {
+      return res.status(404).json({
+        error: "Agent not found.",
       });
     }
 
@@ -139,8 +153,16 @@ exports.createOutboundCall = async (req, res) => {
 
     console.log("[LiveKit Outbound] SIP Participant created successfully:", sipParticipant);
 
+    const agentIdentity = `agent-${String(agent._id)}`;
+    const agentMetadata = JSON.stringify({
+      role: "agent",
+      agentId: String(agent._id),
+      agentName: agent.name,
+    });
     const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
-      identity: `agent-${Date.now()}`,
+      identity: agentIdentity,
+      name: agent.name,
+      metadata: agentMetadata,
     });
     at.addGrant({ roomJoin: true, room: targetRoom });
     const token = await at.toJwt();
@@ -150,6 +172,13 @@ exports.createOutboundCall = async (req, res) => {
       sipParticipant,
       roomName: targetRoom,
       token,
+      participantIdentity,
+      agent: {
+        id: agent._id,
+        name: agent.name,
+        identity: agentIdentity,
+        metadata: agentMetadata,
+      },
     });
   } catch (error) {
     console.error("[LiveKit Outbound] Error:", error);
