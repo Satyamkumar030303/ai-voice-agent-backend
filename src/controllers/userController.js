@@ -63,3 +63,53 @@ exports.loginUser = async (req, res) => {
     res.status(500).json({ message: "Server error ❌", error });
   }
 };
+exports.updateProfile = async (req, res) => {
+  try {
+    const { name, email } = req.body;
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { name, email },
+      { new: true }
+    );
+
+    res.json({
+      message: "Profile updated successfully ✅",
+      user,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to update profile ❌",
+      error: error.message,
+    });
+  }
+};
+exports.changePassword = async (req, res) => {
+  try {
+
+    const { oldPassword, newPassword } = req.body;
+
+    const user = await User.findById(req.user._id);
+
+    if (user.password !== oldPassword) {
+      return res.status(400).json({
+        message: "Old password incorrect ❌"
+      });
+    }
+
+    user.password = newPassword;
+
+    await user.save();
+
+    res.json({
+      message: "Password changed successfully ✅"
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to change password ❌",
+      error: error.message
+    });
+  }
+};

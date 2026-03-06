@@ -5,9 +5,15 @@ const User = require("../models/User");
 const { protect } = require("../middleware/authMiddleware");
 const { registerUser, loginUser } = require("../controllers/userController");
 const { connectTwilio, makeCall } = require("../controllers/twilioController");
+const { updateProfile, changePassword } = require("../controllers/userController");
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);
+
+//user update
+router.put("/update-profile", protect, updateProfile);
+
+router.put("/change-password", protect, changePassword);
 
 // ✅ FIXED
 router.post("/call", protect, makeCall);
