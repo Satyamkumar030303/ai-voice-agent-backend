@@ -3,7 +3,8 @@ const jwt = require("jsonwebtoken");
 exports.protect = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    console.log(authHeader);
+
+    console.log("Auth Header:", authHeader);
 
     // Check if token exists
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -16,13 +17,24 @@ exports.protect = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     console.log("DECODED:", decoded);
-    // Attach userId to request
-   req.user = {
-  _id: decoded.userId
-};
 
-    next();
+    // Attach user to request
+    req.user = {
+      _id: decoded.userId,
+    };
+
+    next(); // 🔥 continue to route
   } catch (error) {
-    return res.status(401).json({ message: "Invalid token ❌" });
+    console.log("JWT ERROR:", error.message);
+
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({
+        message: "Token expired, please login again",
+      });
+    }
+
+    return res.status(401).json({
+      message: "Invalid token",
+    });
   }
 };
