@@ -18,6 +18,7 @@ const getSipClient = () =>
   new SipClient(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
 
 const getLivekitSipUriBase = () => (process.env.LIVEKIT_SIP_URI || "").trim();
+const isE164 = (value) => /^\+[1-9]\d{6,14}$/.test((value || "").trim());
 
 exports.handleTwilioVoiceWebhook = (req, res) => {
   console.log("Twilio request body:", req.body);
@@ -91,27 +92,44 @@ exports.createOutboundCall = async (req, res) => {
     }
 
     const { phoneNumber, fromNumber } = req.body;
+    const normalizedPhone = (phoneNumber || "").trim();
 
-    if (!phoneNumber) {
+    if (!normalizedPhone) {
       return res.status(400).json({
         error: "phoneNumber is required to make an outbound call.",
+      });
+    }
+    if (!isE164(normalizedPhone)) {
+      return res.status(400).json({
+        error: "phoneNumber must be in E.164 format (example: +14155550123).",
       });
     }
 
     // Always generate dynamic room server-side
     const targetRoom = `room-${Date.now()}`;
-    const participantIdentity = `user-${phoneNumber.replace(/\+/g, "")}`;
-    const callerId = fromNumber || process.env.TWILIO_PHONE_NUMBER;
+    const participantIdentity = `user-${normalizedPhone.replace(/\+/g, "")}`;
+    const callerId = (fromNumber || process.env.TWILIO_PHONE_NUMBER || "").trim();
+
+    if (!callerId) {
+      return res.status(400).json({
+        error: "fromNumber is missing. Set req.body.fromNumber or TWILIO_PHONE_NUMBER in .env.",
+      });
+    }
+    if (!isE164(callerId)) {
+      return res.status(400).json({
+        error: "fromNumber must be in E.164 format (example: +14155550123).",
+      });
+    }
 
     console.log(
-      `[LiveKit Outbound] Dialing ${phoneNumber} from ${callerId || "default"}, targeting room: ${targetRoom}`
+      `[LiveKit Outbound] Dialing ${normalizedPhone} from ${callerId}, targeting room: ${targetRoom}`
     );
 
     const sipClient = getSipClient();
 
     const sipParticipant = await sipClient.createSipParticipant(
       LIVEKIT_SIP_TRUNK_ID,
-      phoneNumber,
+      normalizedPhone,
       targetRoom,
       {
         participantIdentity,
@@ -135,8 +153,15 @@ exports.createOutboundCall = async (req, res) => {
     });
   } catch (error) {
     console.error("[LiveKit Outbound] Error:", error);
+    const message = error?.message || "Failed to initiate LiveKit outbound call";
+    const status = error?.status || error?.code || 500;
+    const isForbidden = String(message).includes("403") || Number(status) === 403;
+
     return res.status(500).json({
-      error: error.message || "Failed to initiate LiveKit outbound call",
+      error: message,
+      hint: isForbidden
+        ? "SIP 403 usually means your LiveKit SIP trunk/provider auth or allowed caller ID is rejecting the INVITE. Verify trunk credentials and fromNumber ownership in provider console."
+        : undefined,
     });
   }
 };
