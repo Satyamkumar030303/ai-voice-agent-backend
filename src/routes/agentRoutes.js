@@ -13,6 +13,7 @@ const {
   updateAgent,
   uploadPDF,
   attachKBToAgent,
+  detachKBFromAgent,
   getKnowledgeBase,
   askAgent,
   deleteKB, // deleteKB for knowledge base
@@ -40,6 +41,7 @@ router.get("/", protect, getAgents);
 router.get("/:id", protect, getAgentById); // ✅ AFTER /kb
 router.delete("/:id", protect, deleteAgent);
 router.put("/:id", protect, updateAgent);
+router.delete("/:agentId/kb/:kbId", protect, detachKBFromAgent);
 
 // =======================
 // 🟢 AI ROUTE
