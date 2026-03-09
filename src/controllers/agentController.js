@@ -320,6 +320,42 @@ ${question}
   }
 };
 
+// =======================
+// 🟢 REMOVE KB FROM AGENT
+// =======================
+exports.removeKBFromAgent = async (req, res) => {
+  try {
+    const { agentId, kbId } = req.body;
+
+    const agent = await Agent.findOne({
+      _id: agentId,
+      user: req.user._id,
+    });
+
+    if (!agent) {
+      return res.status(404).json({
+        message: "Agent not found ❌"
+      });
+    }
+
+    agent.knowledgeBase = agent.knowledgeBase.filter(
+      (id) => id.toString() !== kbId
+    );
+
+    await agent.save();
+
+    res.json({
+      message: "Knowledge base removed from agent ✅"
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to remove KB ❌",
+      error: error.message
+    });
+  }
+};
+
 //  TO Delete Knowledge Base
 exports.deleteKB = async (req, res) => {
     try {
