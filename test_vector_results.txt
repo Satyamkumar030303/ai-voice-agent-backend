@@ -1,0 +1,4 @@
+Connected to MongoDB
+Sample chunk vector length: 3072
+Testing $vectorSearch with fake index...
+$vectorSearch fake index returned 0 results

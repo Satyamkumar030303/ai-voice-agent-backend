@@ -11,20 +11,20 @@ async function askGemini(prompt) {
   const result = await model.generateContent(prompt);
   return result.response.text();
 }
-const embeddingModel = genAI.getGenerativeModel({
-  model: "gemini-embedding-001",
-});
+// const embeddingModel = genAI.getGenerativeModel({
+//   model: "gemini-embedding-001",
+// });
 
-async function embedGemini(text) {
-  const result = await embeddingModel.embedContent({
-    content: {
-      parts: [{ text }]
-    }
-  });
+// async function embedGemini(text) {
+//   const result = await embeddingModel.embedContent({
+//     content: {
+//       parts: [{ text }]
+//     }
+//   });
 
-  return result.embedding.values;
-}
+//   return result.embedding.values;
+// }
 
 
 
-module.exports = { askGemini, embedGemini };
+module.exports = { askGemini };
