@@ -1,9 +1,11 @@
-const { SipClient, AccessToken } = require("livekit-server-sdk");
+const { SipClient, AccessToken, AgentDispatchClient } = require("livekit-server-sdk");
+const Agent = require("../models/Agent");
 
 const LIVEKIT_URL = process.env.LIVEKIT_URL;
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET;
 const LIVEKIT_SIP_TRUNK_ID = process.env.LIVEKIT_SIP_TRUNK_ID;
+const LIVEKIT_AGENT_NAME = (process.env.LIVEKIT_AGENT_NAME || "voice-agent").trim();
 
 const getMissingConfig = () => {
   const missing = [];
@@ -16,6 +18,8 @@ const getMissingConfig = () => {
 
 const getSipClient = () =>
   new SipClient(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
+const getDispatchClient = () =>
+  new AgentDispatchClient(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
 
 const getLivekitSipUriBase = () => (process.env.LIVEKIT_SIP_URI || "").trim();
 const isE164 = (value) => /^\+[1-9]\d{6,14}$/.test((value || "").trim());
@@ -91,7 +95,7 @@ exports.createOutboundCall = async (req, res) => {
       });
     }
 
-    const { phoneNumber, fromNumber } = req.body;
+    const { phoneNumber, fromNumber, agentId } = req.body;
     const normalizedPhone = (phoneNumber || "").trim();
 
     if (!normalizedPhone) {
@@ -102,6 +106,18 @@ exports.createOutboundCall = async (req, res) => {
     if (!isE164(normalizedPhone)) {
       return res.status(400).json({
         error: "phoneNumber must be in E.164 format (example: +14155550123).",
+      });
+    }
+    if (!agentId) {
+      return res.status(400).json({
+        error: "agentId is required.",
+      });
+    }
+
+    const agent = await Agent.findById(agentId).select("_id name systemPrompt greeting");
+    if (!agent) {
+      return res.status(404).json({
+        error: "Agent not found.",
       });
     }
 
@@ -139,17 +155,42 @@ exports.createOutboundCall = async (req, res) => {
 
     console.log("[LiveKit Outbound] SIP Participant created successfully:", sipParticipant);
 
+    const agentIdentity = `agent-${String(agent._id)}`;
+    const agentMetadata = JSON.stringify({
+      role: "agent",
+      agentId: String(agent._id),
+      agentName: agent.name,
+    });
     const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
-      identity: `agent-${Date.now()}`,
+      identity: agentIdentity,
+      name: agent.name,
+      metadata: agentMetadata,
     });
     at.addGrant({ roomJoin: true, room: targetRoom });
     const token = await at.toJwt();
+    const dispatchMetadata = JSON.stringify({
+      agentId: String(agent._id),
+      agentName: agent.name,
+      systemPrompt: agent.systemPrompt,
+      greeting: agent.greeting,
+    });
+    const dispatch = await getDispatchClient().createDispatch(targetRoom, LIVEKIT_AGENT_NAME, {
+      metadata: dispatchMetadata,
+    });
 
     return res.json({
       message: "Outbound call initiated successfully",
       sipParticipant,
       roomName: targetRoom,
       token,
+      dispatch,
+      participantIdentity,
+      agent: {
+        id: agent._id,
+        name: agent.name,
+        identity: agentIdentity,
+        metadata: agentMetadata,
+      },
     });
   } catch (error) {
     console.error("[LiveKit Outbound] Error:", error);

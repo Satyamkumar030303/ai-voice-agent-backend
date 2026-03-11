@@ -2,6 +2,7 @@ const Agent = require("../models/Agent");
 const KnowledgeBase = require("../models/KnowledgeBase");
 const KnowledgeChunk = require("../models/KnowledgeChunk");
 const { askGemini, embedGemini } = require("../services/geminiService");
+const { retrieveKnowledgeContext } = require("../services/knowledgeBaseService");
 
 const pdfParse = require("pdf-parse");
 const chunkText = require("../utils/chunkText");
@@ -310,24 +311,7 @@ exports.askAgent = async (req, res) => {
       });
     }
 
-    const questionEmbedding = await embedGemini(question);
-
-    const matchedChunks = await KnowledgeChunk.aggregate([
-      {
-        $vectorSearch: {
-          index: "vector_index",
-          path: "embedding",
-          queryVector: questionEmbedding,
-          numCandidates: 100,
-          limit: 5,
-          filter: {
-            knowledgeBaseId: { $in: agent.knowledgeBase }
-          }
-        }
-      }
-    ]);
-
-    const context = matchedChunks.map(c => c.text).join("\n\n");
+    const { context } = await retrieveKnowledgeContext(agent._id, question);
 
     const prompt = `
 Context:
@@ -349,6 +333,39 @@ ${question}
   }
 };
 
+// =======================
+// 🟢 DETACH KB FROM AGENT
+// =======================
+exports.detachKBFromAgent = async (req, res) => {
+  try {
+    const { agentId, kbId } = req.params;
+
+    const agent = await Agent.findOne({
+      _id: agentId,
+      user: req.user._id, // ✅ FIXED
+    });
+
+    if (!agent) {
+      return res.status(404).json({ message: "Agent not found ❌" });
+    }
+
+    const kbIndex = agent.knowledgeBase.indexOf(kbId);
+    if (kbIndex === -1) {
+      return res.status(400).json({ message: "Knowledge base not attached ⚠️" });
+    }
+
+    agent.knowledgeBase.splice(kbIndex, 1);
+    await agent.save();
+
+    res.json({ message: "Knowledge base detached ✅" });
+
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to detach KB ❌",
+      error: error.message
+    });
+  }
+};
 //  TO Delete Knowledge Base
 exports.deleteKB = async (req, res) => {
     try {

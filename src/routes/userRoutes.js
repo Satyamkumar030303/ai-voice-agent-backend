@@ -6,9 +6,14 @@ const { protect } = require("../middleware/authMiddleware");
 const { registerUser, loginUser } = require("../controllers/userController");
 const { connectTwilio, makeCall } = require("../controllers/twilioController");
 const { updateProfile, changePassword } = require("../controllers/userController");
+const { forgotPassword, resetPassword } = require("../controllers/userController");
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);
+
+//user forgot password
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password/:token", resetPassword);
 
 //user update
 router.put("/update-profile", protect, updateProfile);
