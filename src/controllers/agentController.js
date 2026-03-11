@@ -305,41 +305,38 @@ ${question}
 };
 
 // =======================
-// 🟢 REMOVE KB FROM AGENT
+// 🟢 DETACH KB FROM AGENT
 // =======================
-exports.removeKBFromAgent = async (req, res) => {
+exports.detachKBFromAgent = async (req, res) => {
   try {
-    const { agentId, kbId } = req.body;
+    const { agentId, kbId } = req.params;
 
     const agent = await Agent.findOne({
       _id: agentId,
-      user: req.user._id,
+      user: req.user._id, // ✅ FIXED
     });
 
     if (!agent) {
-      return res.status(404).json({
-        message: "Agent not found ❌"
-      });
+      return res.status(404).json({ message: "Agent not found ❌" });
     }
 
-    agent.knowledgeBase = agent.knowledgeBase.filter(
-      (id) => id.toString() !== kbId
-    );
+    const kbIndex = agent.knowledgeBase.indexOf(kbId);
+    if (kbIndex === -1) {
+      return res.status(400).json({ message: "Knowledge base not attached ⚠️" });
+    }
 
+    agent.knowledgeBase.splice(kbIndex, 1);
     await agent.save();
 
-    res.json({
-      message: "Knowledge base removed from agent ✅"
-    });
+    res.json({ message: "Knowledge base detached ✅" });
 
   } catch (error) {
     res.status(500).json({
-      message: "Failed to remove KB ❌",
+      message: "Failed to detach KB ❌",
       error: error.message
     });
   }
 };
-
 //  TO Delete Knowledge Base
 exports.deleteKB = async (req, res) => {
     try {
