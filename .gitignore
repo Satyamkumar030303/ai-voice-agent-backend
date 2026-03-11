@@ -1,3 +1,18 @@
-node_modules
-.env
+# Logs
+*.log
+*.txt
 
+# Specific logs
+backend_out.log
+dev_out.log
+worker_out.log
+ngrok_out.log
+error.log
+out.txt
+error.txt
+
+# Node modules
+node_modules/
+
+# Environment variables
+.env
