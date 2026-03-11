@@ -1,3 +1,7 @@
 node_modules
 .env
 
+# logs
+*.log
+*_out.log
+*.txt
