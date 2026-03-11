@@ -18,7 +18,11 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
-    // Twilio Credentials 
+    // 🔑 forgot password fields
+    resetPasswordToken: String,
+    resetPasswordExpire: Date,
+
+    // Twilio Credentials
     twilio: {
       accountSid: String,
       authToken: String,

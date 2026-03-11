@@ -26,8 +26,6 @@ app.use("/api/livekit", livekitRoutes);
 
 /**
  * TWILIO INBOUND VOICE WEBHOOK
- * Twilio will hit this endpoint when someone calls your Twilio number.
- * We forward the call to LiveKit SIP which creates a LiveKit room.
  */
 app.post("/api/twilio/voice", livekitController.handleTwilioVoiceWebhook);
 
