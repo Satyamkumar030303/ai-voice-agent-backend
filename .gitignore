@@ -6,3 +6,5 @@ node_modules
 *_out.txt
 test_vector_results*.txt
 plain_kb_map.txt
+backend_out.log
+worker_out.log
