@@ -1,24 +1,20 @@
 # 🚀 AI Voice Agent SaaS — Backend
 
-![Node](https://img.shields.io/badge/Node.js-18+-green)
-![Docker](https://img.shields.io/badge/Docker-ready-blue)
-![License](https://img.shields.io/badge/license-MIT-orange)
-
-A **production-ready backend** for an **AI-powered Voice Agent SaaS platform** that enables real-time phone calls, intelligent responses using **Retrieval-Augmented Generation (RAG)**, and **AI-driven voice conversations**.
+A production-ready backend for an AI-powered Voice Agent SaaS platform that enables real-time phone calls, intelligent responses using RAG, and AI-driven conversations.
 
 ---
 
-# 📌 Features
+## 📌 Features
 
-## 🔐 Authentication
+### 🔐 Authentication
 
 * JWT-based authentication
-* Protected API routes
-* Secure user session handling
+* Protected routes
+* Secure user handling
 
 ---
 
-## ☎️ Twilio Integration
+### ☎️ Twilio Integration
 
 * Connect Twilio account
 * Verify credentials before saving
@@ -26,169 +22,116 @@ A **production-ready backend** for an **AI-powered Voice Agent SaaS platform** t
 
 ---
 
-## 📞 Voice Calling
+### 📞 Voice Calling
 
-* ✅ Inbound calls via Twilio webhook
-* ✅ Outbound calls via API
-* AI-generated voice responses
+* ✅ Inbound calls (Twilio webhook)
+* ✅ Outbound calls (dynamic API)
+* AI voice response support
 
 ---
 
-## 🤖 AI Agent System
+### 🤖 AI Agent System
 
-* Create multiple AI agents
+* Create AI agents
 * Custom system prompts
 * Personalized greetings
-* Agent-specific configuration
 
 ---
 
-## 📄 Knowledge Base (RAG)
+### 📄 Knowledge Base (RAG)
 
-* Upload PDF documents
+* Upload PDFs
 * Extract text using `pdf-parse`
-* Chunk-based semantic retrieval
-* Context-aware AI answers
+* Chunk-based search
+* Context-aware answers
 
 ---
 
-## 🧠 AI Integration
+### 🧠 AI Integration
 
 * Gemini 2.5 Flash Lite
 * Retrieval Augmented Generation (RAG)
 
 ---
 
-# 🧱 Tech Stack
+## 🧱 Tech Stack
 
-Backend technologies used:
-
-* **Node.js**
-* **Express.js**
-* **MongoDB**
-* **Twilio**
-* **Gemini AI**
-* **LiveKit (planned)**
+* Node.js
+* Express.js
+* MongoDB
+* Twilio
+* Gemini AI
+* LiveKit (in progress)
 
 ---
 
-# ⚙️ Local Setup Instructions
+## ⚙️ Setup Instructions
 
-## 1️⃣ Clone Repository
+### 1. Clone repository
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/ai-voice-agent-backend.git
 cd ai-voice-agent-backend
 ```
 
----
-
-## 2️⃣ Install Dependencies
+### 2. Install dependencies
 
 ```bash
 npm install
 ```
 
----
-
-## 3️⃣ Create `.env` File
-
-Create a `.env` file in the root directory.
-
-Example:
+### 3. Create `.env` file
 
 ```env
 PORT=5000
-
-MONGO_URI=mongodb://localhost:27017/ai-voice-agent
-JWT_SECRET=your_jwt_secret
-
-# Gemini AI
-GEMINI_API_KEY=your_gemini_api_key
-
-# Email
-EMAIL_USER=your_email@gmail.com
-EMAIL_PASS=your_app_password
-
-# Twilio
-TWILIO_ACCOUNT_SID=your_sid
-TWILIO_AUTH_TOKEN=your_token
-TWILIO_PHONE_NUMBER=your_number
+MONGO_URI=your_mongodb_uri
+JWT_SECRET=your_secret
+GEMINI_API_KEY=your_api_key
 ```
 
----
-
-## 4️⃣ Run Development Server
+### 4. Run server
 
 ```bash
 npm run dev
 ```
 
-Backend will run at:
-
-```
-http://localhost:5000
-```
-
----
-
-# 🐳 Run with Docker (Recommended)
-
-Instead of installing dependencies manually, you can run the backend using **Docker**.
-
-## Prerequisites
-
-* Docker Desktop installed
-* MongoDB running locally or MongoDB Atlas
-
----
-
-## Run Backend Container
-
-From the project root:
+### Debug with saved logs
 
 ```bash
-docker compose up --build
+npm run start:debug
 ```
 
-Docker will:
+This writes fresh runtime logs to:
 
-* Build the backend container
-* Install dependencies
-* Start the Node server
-
----
-
-# 🔗 API Endpoints
-
-## 👤 Authentication
-
-| Method | Endpoint              |
-| ------ | --------------------- |
-| POST   | `/api/users/register` |
-| POST   | `/api/users/login`    |
+* `backend_out.log`
+* `worker_out.log`
 
 ---
 
-## ☎️ Twilio
+## 🔗 API Endpoints
 
-| Method | Endpoint                    |
-| ------ | --------------------------- |
-| POST   | `/api/users/connect-twilio` |
-| POST   | `/api/users/call`           |
+### 👤 Auth
 
----
-
-## 🤖 Agents
-
-| Method | Endpoint      |
-| ------ | ------------- |
-| POST   | `/api/agents` |
-| GET    | `/api/agents` |
+* POST `/api/users/register`
+* POST `/api/users/login`
 
 ---
 
-# 📞 Example: Make Call
+### ☎️ Twilio
+
+* POST `/api/users/connect-twilio`
+* POST `/api/users/call`
+
+---
+
+### 🤖 Agents
+
+* POST `/api/agents`
+* GET `/api/agents`
+
+---
+
+## 📞 Example: Make Call
 
 ### Request
 
@@ -197,70 +140,32 @@ Docker will:
   "to": "+919XXXXXXXXX"
 }
 ```
+🌐 Ngrok Setup (IMPORTANT)
 
----
+Twilio requires a public URL, so we use ngrok.
 
-# 🌐 Ngrok Setup (IMPORTANT)
+Install Ngrok
 
-Twilio requires a **public URL**, so we use **ngrok**.
+https://ngrok.com/download
 
----
-
-## Install Ngrok
-
-Download from:
-
-[https://ngrok.com/download](https://ngrok.com/download)
-
----
-
-## Add Auth Token
-
-```bash
+Add Auth Token
 ngrok config add-authtoken YOUR_TOKEN
-```
-
----
-
-## Start Ngrok
-
-```bash
+Start Ngrok
 ngrok http 5000
-```
-
-Example output:
-
-```
+Example Output
 https://abc123.ngrok-free.dev -> http://localhost:5000
-```
+Twilio Webhook Setup
 
----
+Go to Twilio Console → Phone Numbers → Voice
 
-## Twilio Webhook Setup
+Set:
 
-Go to:
-
-```
-Twilio Console → Phone Numbers → Voice
-```
-
-Set webhook:
-
-```
 https://abc123.ngrok-free.dev/api/twilio/voice
-```
 
 Method:
 
-```
 POST
-```
-
----
-
-# 🎤 Twilio Voice Webhook Example
-
-```javascript
+🎤 Twilio Voice Webhook Example
 app.post("/api/twilio/voice", (req, res) => {
   res.set("Content-Type", "text/xml");
 
@@ -270,13 +175,7 @@ app.post("/api/twilio/voice", (req, res) => {
     </Response>
   `);
 });
-```
-
----
-
-# 🔄 System Flow
-
-```
+🔄 System Flow
 User → Backend API → MongoDB
                     ↓
                 Knowledge Base
@@ -284,29 +183,14 @@ User → Backend API → MongoDB
                 Gemini AI (RAG)
                     ↓
                 Response
-```
 
+Call Flow:
+User → Backend → Twilio → Webhook (ngrok) → Backend → Voice Response
 ---
 
-# 📞 Call Flow
+## 🧠 System Architecture
 
-```
-User
- ↓
-Twilio Phone Number
- ↓
-Backend Webhook
- ↓
-Gemini AI (RAG)
- ↓
-Voice Response
-```
-
----
-
-# 🧠 System Architecture
-
-```
+```text
 User → Backend → Twilio → Phone Call
                 ↓
             Gemini AI (RAG)
@@ -316,108 +200,16 @@ User → Backend → Twilio → Phone Call
 
 ---
 
-# 🐳 Docker Architecture
-
-The system runs inside **multiple containers**.
-
-```
-User Browser
-      ↓
-Frontend Container (React + Vite) → Port 5173
-      ↓
-Backend Container (Node + Express) → Port 5000
-      ↓
-MongoDB
-```
-
-Containers are orchestrated using **Docker Compose**.
-
----
-
-# 🐳 Running the Full System with Docker
-
-The frontend and backend exist in **separate repositories**, but they can run together using **Docker Compose**.
-
-Example project structure:
-
-```
-ai-voice-saas
-├── backend
-├── frontend
-└── docker-compose.yml
-```
-
----
-
-## Example docker-compose.yml
-
-```yaml
-services:
-
-  backend:
-    build: ./backend
-    ports:
-      - "5000:5000"
-    env_file:
-      - ./backend/.env
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "5173:5173"
-    depends_on:
-      - backend
-```
-
----
-
-## Run the Full System
-
-Clone both repositories:
-
-```bash
-git clone <backend_repo>
-git clone <frontend_repo>
-```
-
-Project structure:
-
-```
-ai-voice-saas/
-backend/
-frontend/
-docker-compose.yml
-```
-
-Run the system:
-
-```bash
-docker compose up --build
-```
-
----
-
-## Access Application
-
-Frontend:
-
-```
-http://localhost:5173
-```
-
-Backend API:
-
-```
-http://localhost:5000
-```
-
----
-
-# 🎯 Future Improvements
+## 🎯 Future Improvements
 
 * 🎙️ Real-time AI voice (LiveKit)
 * 💳 Stripe payments
+* 📧 Email notifications
 * 🧠 Tool-based AI actions
 
 ---
+
+## 🚀 Author
+
+Satyam Kumar
 

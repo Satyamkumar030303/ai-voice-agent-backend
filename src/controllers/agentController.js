@@ -2,6 +2,7 @@ const Agent = require("../models/Agent");
 const KnowledgeBase = require("../models/KnowledgeBase");
 const KnowledgeChunk = require("../models/KnowledgeChunk");
 const { askGemini, embedGemini } = require("../services/geminiService");
+const { retrieveKnowledgeContext } = require("../services/knowledgeBaseService");
 
 const pdfParse = require("pdf-parse");
 const chunkText = require("../utils/chunkText");
@@ -281,24 +282,7 @@ exports.askAgent = async (req, res) => {
       });
     }
 
-    const questionEmbedding = await embedGemini(question);
-
-    const matchedChunks = await KnowledgeChunk.aggregate([
-      {
-        $vectorSearch: {
-          index: "vector_index",
-          path: "embedding",
-          queryVector: questionEmbedding,
-          numCandidates: 100,
-          limit: 5,
-          filter: {
-            knowledgeBaseId: { $in: agent.knowledgeBase }
-          }
-        }
-      }
-    ]);
-
-    const context = matchedChunks.map(c => c.text).join("\n\n");
+    const { context } = await retrieveKnowledgeContext(agent._id, question);
 
     const prompt = `
 Context:
