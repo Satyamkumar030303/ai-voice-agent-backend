@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Logs
 *.log
 *.txt
@@ -16,3 +17,17 @@ node_modules/
 
 # Environment variables
 .env
+=======
+node_modules
+.env
+# Logs
+*.log
+*_out.log
+
+# Debug
+*.txt
+
+# Temp exports
+exports*.json
+error*.json
+>>>>>>> 1b56fc9bf5364cfe43539221889d147e1fe0f724

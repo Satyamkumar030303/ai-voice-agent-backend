@@ -1,10 +1,10 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-// console.log("API KEY:", process.env.GEMINI_API_KEY);
+// Prioritize GOOGLE_API_KEY as it is the currently active billing key
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY);
 
 const model = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash-lite",
+  model: "gemini-2.5-flash",
 });
 
 async function askGemini(prompt) {
@@ -24,7 +24,5 @@ async function embedGemini(text) {
 
   return result.embedding.values;
 }
-
-
 
 module.exports = { askGemini, embedGemini };

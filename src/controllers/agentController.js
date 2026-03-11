@@ -127,7 +127,7 @@ exports.updateAgent = async (req, res) => {
         user: req.user._id, // ✅ FIXED
       },
       { name, systemPrompt, greeting },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!agent) {
@@ -166,7 +166,6 @@ exports.uploadPDF = async (req, res) => {
       user: req.user._id, // ✅ FIXED
       fileName: req.file.originalname,
     });
-    console.log("CREATED KB:", kb);
 
     const chunkDocs = [];
 
@@ -229,6 +228,40 @@ exports.attachKBToAgent = async (req, res) => {
   }
 };
 
+// =======================
+// 🟢 DETACH KB FROM AGENT
+// =======================
+exports.detachKBFromAgent = async (req, res) => {
+  try {
+    const { agentId, kbId } = req.params;
+
+    const agent = await Agent.findOne({
+      _id: agentId,
+      user: req.user._id, // ✅ FIXED
+    });
+
+    if (!agent) {
+      return res.status(404).json({ message: "Agent not found ❌" });
+    }
+
+    const kbIndex = agent.knowledgeBase.indexOf(kbId);
+    if (kbIndex === -1) {
+      return res.status(400).json({ message: "Knowledge base not attached ⚠️" });
+    }
+
+    agent.knowledgeBase.splice(kbIndex, 1);
+    await agent.save();
+
+    res.json({ message: "Knowledge base detached ✅" });
+
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to detach KB ❌",
+      error: error.message
+    });
+  }
+};
+
 
 // =======================
 // 🟢 GET KBs
@@ -239,8 +272,6 @@ const mongoose = require("mongoose");
 
 exports.getKnowledgeBase = async (req, res) => {
   try {
-    console.log("REQ.USER:", req.user);
-
     if (!req.user || !req.user._id) {
       return res.status(401).json({ message: "Unauthorized ❌" });
     }
@@ -249,8 +280,6 @@ exports.getKnowledgeBase = async (req, res) => {
     const kbs = await KnowledgeBase.find({
       user: req.user._id,
     }).lean(); // 👈 IMPORTANT
-
-    console.log("KBS FOUND:", kbs);
 
     res.json({ kbs });
 
