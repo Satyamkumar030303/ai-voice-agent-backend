@@ -1,7 +1,12 @@
 node_modules
 .env
-
-# logs
+# Logs
 *.log
 *_out.log
+
+# Debug
 *.txt
+
+# Temp exports
+exports*.json
+error*.json
