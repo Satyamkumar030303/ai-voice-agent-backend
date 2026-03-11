@@ -1,18 +1,36 @@
 {
-  "name": "backend",
+  "name": "ai-voice-agent-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Backend for AI Voice Agent using LiveKit, Twilio and Gemini",
+  "main": "src/app.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start:backend": "node server.js",
+    "start:agent": "node src/services/agent.mjs dev",
+    "start:backend:log": "powershell -Command \"node server.js *>&1 | Tee-Object -FilePath backend_out.log\"",
+    "start:agent:log": "powershell -Command \"node src/services/agent.mjs dev *>&1 | Tee-Object -FilePath worker_out.log\"",
+    "start:debug": "concurrently \"npm run start:backend:log\" \"npm run start:agent:log\"",
+    "start": "concurrently \"npm run start:backend\" \"npm run start:agent\"",
+    "test": "echo \"No tests specified\""
   },
-  "keywords": [],
+  "keywords": [
+    "livekit",
+    "twilio",
+    "ai-agent",
+    "gemini",
+    "voice-agent"
+  ],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@livekit/agents": "^1.0.49",
+    "@livekit/agents-plugin-deepgram": "^1.0.49",
+    "@livekit/agents-plugin-elevenlabs": "^1.0.49",
+    "@livekit/agents-plugin-google": "^1.0.49",
+    "@livekit/agents-plugin-openai": "^1.0.49",
+    "@livekit/rtc-node": "^0.13.24",
+    "@livekit/rtc-node-win32-x64-msvc": "^0.13.24",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
@@ -25,6 +43,7 @@
     "twilio": "^5.12.2"
   },
   "devDependencies": {
+    "concurrently": "^9.0.1",
     "nodemon": "^3.1.14"
   }
 }

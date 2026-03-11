@@ -1,5 +1,5 @@
 const twilio = require("twilio");
-const { AccessToken } = require("livekit-server-sdk");
+const { AccessToken, AgentDispatchClient } = require("livekit-server-sdk");
 const User = require("../models/User");
 const Agent = require("../models/Agent");
 
@@ -81,6 +81,7 @@ const getSipStatusCallbackUrl = (req) => {
 const getLivekitSipUriBase = () => normalizeEnv(process.env.LIVEKIT_SIP_URI);
 const getLivekitApiKey = () => normalizeEnv(process.env.LIVEKIT_API_KEY);
 const getLivekitApiSecret = () => normalizeEnv(process.env.LIVEKIT_API_SECRET);
+const getLivekitAgentName = () => normalizeEnv(process.env.LIVEKIT_AGENT_NAME) || "voice-agent";
 
 const buildLivekitSipUri = (roomName) => {
   const base = getLivekitSipUriBase();
@@ -92,6 +93,9 @@ const buildLivekitSipUri = (roomName) => {
 };
 
 const buildAgentIdentity = (agentId) => `agent-${agentId}`;
+
+const createDispatchClient = () =>
+  new AgentDispatchClient(process.env.LIVEKIT_URL, getLivekitApiKey(), getLivekitApiSecret());
 
 const generateAgentToken = async ({ roomName, agent }) => {
   const apiKey = getLivekitApiKey();
@@ -117,6 +121,26 @@ const generateAgentToken = async ({ roomName, agent }) => {
 
   const token = await at.toJwt();
   return { token, identity, metadata };
+};
+
+const dispatchAgentToRoom = async ({ roomName, agent }) => {
+  const apiKey = getLivekitApiKey();
+  const apiSecret = getLivekitApiSecret();
+
+  if (!process.env.LIVEKIT_URL || !apiKey || !apiSecret) {
+    throw new Error("LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET are required for agent dispatch.");
+  }
+
+  const dispatchMetadata = JSON.stringify({
+    agentId: String(agent._id),
+    agentName: agent.name,
+    systemPrompt: agent.systemPrompt,
+    greeting: agent.greeting,
+  });
+
+  return createDispatchClient().createDispatch(roomName, getLivekitAgentName(), {
+    metadata: dispatchMetadata,
+  });
 };
 
 exports.connectTwilio = async (req, res) => {
@@ -188,7 +212,9 @@ exports.makeCall = async (req, res) => {
       });
     }
 
-    const agent = await Agent.findOne({ _id: agentId, user: req.user._id }).select("_id name");
+    const agent = await Agent.findOne({ _id: agentId, user: req.user._id }).select(
+      "_id name systemPrompt greeting"
+    );
     if (!agent) {
       return res.status(404).json({
         message: "Agent not found for this user.",
@@ -214,6 +240,7 @@ exports.makeCall = async (req, res) => {
 
     const { token: agentToken, identity: agentIdentity, metadata: agentMetadata } =
       await generateAgentToken({ roomName, agent });
+    const dispatch = await dispatchAgentToRoom({ roomName, agent });
 
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -241,6 +268,7 @@ exports.makeCall = async (req, res) => {
       sipStatusCallbackUrl,
       sipUri: livekitSipUri,
       roomName,
+      dispatch,
       agent: {
         id: agent._id,
         name: agent.name,

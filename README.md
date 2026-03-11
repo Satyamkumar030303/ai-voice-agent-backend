@@ -95,6 +95,17 @@ GEMINI_API_KEY=your_api_key
 npm run dev
 ```
 
+### Debug with saved logs
+
+```bash
+npm run start:debug
+```
+
+This writes fresh runtime logs to:
+
+* `backend_out.log`
+* `worker_out.log`
+
 ---
 
 ## 🔗 API Endpoints
