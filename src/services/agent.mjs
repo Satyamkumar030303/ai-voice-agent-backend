@@ -1,18 +1,22 @@
-import { AutoSubscribe, ServerOptions, cli, defineAgent, voice } from "@livekit/agents";
+import { defineAgent, voice, cli, ServerOptions, AutoSubscribe } from "@livekit/agents";
 import { RoomEvent } from "@livekit/rtc-node";
 import * as google from "@livekit/agents-plugin-google";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { getKnowledgeBaseRuntime } from "./knowledgeBaseTool.mjs";
+// import axios from "axios";
+import { TTS as ElevenLabsTTS } from "@livekit/agents-plugin-elevenlabs";
+
+console.log("Using ElevenLabs voice:", process.env.ELEVENLABS_VOICE_ID);
 
 const AGENT_NAME = process.env.LIVEKIT_AGENT_NAME || "voice-agent";
 const DEFAULT_GREETING = "Hello! This is your AI assistant calling. How can I help you today?";
 const DEFAULT_INSTRUCTIONS =
   "You are a phone-based AI assistant. Speak clearly, briefly, and helpfully.";
 
-if (process.env.GEMINI_API_KEY) {
-  process.env.GOOGLE_API_KEY = process.env.GEMINI_API_KEY;
-}
+// if (process.env.GEMINI_API_KEY) {
+//   process.env.GOOGLE_API_KEY = process.env.GEMINI_API_KEY;
+// }
 const parseJobMetadata = (metadata) => {
   if (!metadata) {
     return {};
@@ -25,7 +29,42 @@ const parseJobMetadata = (metadata) => {
     return {};
   }
 };
+  // 🧠 OLLAMA LLM
+// class OllamaLLM {
+//   async generate({ messages }) {
+//     const prompt = messages.map(m => `${m.role}: ${m.content}`).join("\n");
 
+//     console.log("🧠 Sending prompt to Ollama:", prompt);
+
+//     const res = await axios.post(
+//       "http://localhost:11434/api/generate",
+//       {
+//         model: "mistral",
+//         prompt,
+//         stream: false
+//       }
+//     );
+
+//     const text = res.data.response;
+
+//     console.log("🧠 Ollama response:", text);
+
+//     return {
+//       choices: [
+//         {
+//           message: {
+//             role: "assistant",
+//             content: text
+//           }
+//         }
+//       ]
+//     };
+//   }
+// }
+const llm = new google.LLM({
+  model: "gemini-2.5-flash",
+  apiKey: process.env.GOOGLE_API_KEY
+});
 export default defineAgent({
   entry: async (ctx) => {
     await ctx.connect(undefined, AutoSubscribe.AUDIO_ONLY);
@@ -46,17 +85,17 @@ export default defineAgent({
     const deepgram = await import("@livekit/agents-plugin-deepgram");
     const session = new voice.AgentSession({
       stt: new deepgram.STT(),
-      llm: new google.LLM({
-        model: "gemini-2.5-flash-lite",
-        apiKey: process.env.GEMINI_API_KEY,
-      }),
-      tts: new deepgram.TTS({
-        model: "aura-asteria-en",
-      }),
+      // llm: new OllamaLLM(),
+      tts: new ElevenLabsTTS({
+        apiKey: process.env.ELEVENLABS_API_KEY,
+        voiceId: process.env.ELEVENLABS_VOICE_ID
+      })
     });
-
+      
     const agent = new voice.Agent({
       instructions,
+      llm,
+      allowInterruptions: false,
       tools: kbRuntime.tool
         ? {
             search_knowledge_base: kbRuntime.tool,
@@ -68,11 +107,13 @@ export default defineAgent({
       agent,
       room: ctx.room,
     });
+
     console.log("Voice agent session started.");
 
     const greetingHandle = session.say(greeting, {
       allowInterruptions: true,
     });
+
     await greetingHandle.waitForPlayout();
 
     // Keep the job alive for the duration of the call. If entry returns,
