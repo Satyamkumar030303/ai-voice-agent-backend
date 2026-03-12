@@ -213,212 +213,166 @@ User → Backend → Twilio → Phone Call
 
 Satyam Kumar
 
-# 🛍️ Stripe Payment Agent — Setup & Run Guide
+# 💳 Stripe Payment System — stripe.js
 
-A complete payment system that:
-- Creates Stripe payment links for products
-- Sends payment links to users via email
-- Saves completed orders to MongoDB after payment
+Handles the full payment flow:
+- Creates Stripe products & payment links automatically
+- Sends **Email 1** (payment link) before payment
+- Sends **Email 2** (success confirmation) after payment
+- Saves completed orders to MongoDB
 
 ---
 
-## 📁 Project Structure
+## 📁 File Location
 
 ```
-your-project/
+ai-voice-agent-backend/          ← project root
+    .env                         ← your secret keys go here
     src/
         utils/
             payment/
-                ProductPaymentAndEmail.js   ← main file
-    package.json
+                stripe.js        ← this file
 ```
 
 ---
 
-## ✅ Prerequisites
+## 📦 STEP 1 — Install Dependencies
 
-Make sure you have these installed:
-- **Node.js** v18 or higher → [nodejs.org](https://nodejs.org)
-- **MongoDB** running locally OR a MongoDB Atlas account
-- **Gmail** account with App Password enabled
-- **Stripe** account (free) → [stripe.com](https://stripe.com)
-- **ngrok** account (free) → [ngrok.com](https://ngrok.com)
-
----
-
-## 🔧 STEP 1 — Install Dependencies
-
-Go to your project **root folder** (not inside the payment folder):
+Run from your **project root folder:**
 
 ```bash
 cd C:\Users\aakas\OneDrive\Desktop\ddvs\ai-voice-agent-backend
+npm install stripe nodemailer mongoose express dotenv
 ```
 
-Install required packages:
+---
 
+## 🔑 STEP 2 — Create .env File
+
+Create a `.env` file in your **project root** (same level as `package.json`):
+
+```env
+STRIPE_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxx
+WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxx
+MONGO_URL=mongodb://localhost:27017/shopdb
+GMAIL_USER=your@gmail.com
+GMAIL_PASSWORD=abcdefghijklmnop
+SUCCESS_URL=http://localhost:3000/success
+```
+
+> ⚠️ No quotes around values. No spaces around `=`
+
+---
+
+## 🔑 STEP 3 — Get Stripe Secret Key
+
+1. Go to **[dashboard.stripe.com](https://dashboard.stripe.com)**
+2. Make sure **Test Mode** is ON (toggle top right)
+3. Click **Developers** → **API Keys**
+4. Copy **Secret key** → paste as `STRIPE_SECRET_KEY` in `.env`
+
+---
+
+## 📧 STEP 4 — Get Gmail App Password
+
+> You cannot use your normal Gmail password in code. Google blocks it.
+
+1. Go to **[myaccount.google.com](https://myaccount.google.com)**
+2. **Security** → Turn ON **2-Step Verification**
+3. Search **App Passwords** → type `NodeMailer` → click **Create**
+4. Copy the 16-digit password Google shows you
+5. Paste as `GMAIL_PASSWORD` in `.env` **(remove spaces)**
+
+```env
+GMAIL_PASSWORD=abcdefghijklmnop   ✅ correct (no spaces)
+GMAIL_PASSWORD=abcd efgh ijkl mnop  ❌ wrong (has spaces)
+```
+
+---
+
+## 🍃 STEP 5 — Setup MongoDB
+
+**Option A — Local MongoDB:**
 ```bash
-npm install stripe nodemailer mongoose express
+# Make sure MongoDB is running
+mongod
+```
+```env
+MONGO_URL=mongodb://localhost:27017/shopdb
 ```
 
-Also make sure your root `package.json` has `"type": "module"`:
+**Option B — MongoDB Atlas (Cloud):**
+1. Go to **[cloud.mongodb.com](https://cloud.mongodb.com)** → create free cluster
+2. Click **Connect** → **Drivers** → copy connection string
+```env
+MONGO_URL=mongodb+srv://user:password@cluster.mongodb.net/shopdb
+```
+
+---
+
+## 🌐 STEP 6 — Setup ngrok (Public URL for Webhook)
+
+Stripe needs a public HTTPS URL to send webhook events to your local server.
+
+**Install ngrok:**
+```bash
+npm install -g ngrok
+```
+
+**Create free account at [ngrok.com](https://ngrok.com) → copy your auth token:**
+```bash
+ngrok config add-authtoken YOUR_AUTH_TOKEN
+```
+
+**Start ngrok** (after your server is running):
+```bash
+ngrok http 3000
+```
+
+It prints:
+```
+Forwarding  https://abc123.ngrok-free.app → http://localhost:3000
+```
+Copy that URL — you need it in the next step.
+
+---
+
+## 🪝 STEP 7 — Setup Stripe Webhook
+
+1. Go to **[dashboard.stripe.com/test/webhooks](https://dashboard.stripe.com/test/webhooks)**
+2. Click **Add Endpoint**
+3. Fill in:
+   - **Endpoint URL:** `https://abc123.ngrok-free.app/stripe/webhook`
+   - **Payload style:** Snapshot
+   - **Events:** select `checkout.session.completed`
+4. Click **Create**
+5. Click **Reveal** next to **Signing Secret** → copy `whsec_xxx`
+6. Paste as `WEBHOOK_SECRET` in `.env`
+
+---
+
+## ⚙️ STEP 8 — Check package.json Has type module
+
+Open root `package.json` and make sure this line exists:
 
 ```json
 {
   "name": "ai-voice-agent-backend",
   "type": "module",
-  "dependencies": {
-    ...
-  }
+  ...
 }
 ```
 
 ---
 
-## 🔑 STEP 2 — Get Your Stripe Secret Key
+## 🚀 STEP 9 — Run the Server
 
-1. Go to **[dashboard.stripe.com](https://dashboard.stripe.com)**
-2. Make sure **Test Mode** is ON (toggle top right)
-3. Click **Developers** → **API Keys**
-4. Copy **Secret key** — looks like `sk_test_xxxxxxxxxxxxxxxx`
+Open **2 terminals:**
 
-Paste it in `ProductPaymentAndEmail.js`:
-
-```js
-const STRIPE_SECRET_KEY = "sk_test_xxxxxxxxxxxxxxxx";
-```
-
----
-
-## 📧 STEP 3 — Get Gmail App Password
-
-> You need this so your code can send emails. You CANNOT use your normal Gmail password.
-
-1. Go to **[myaccount.google.com](https://myaccount.google.com)**
-2. Click **Security** → Turn ON **2-Step Verification**
-3. Go back to **Security** → search **App Passwords**
-4. Type `NodeMailer` → Click **Create**
-5. Google gives you a 16-digit password like: `abcd efgh ijkl mnop`
-6. Copy it **(Google shows it only once!)**
-
-Paste it in your code **(remove spaces)**:
-
-```js
-const GMAIL_USER     = "your@gmail.com";
-const GMAIL_PASSWORD = "abcdefghijklmnop";  // 16 digits, no spaces
-```
-
----
-
-## 🍃 STEP 4 — Setup MongoDB
-
-**Option A — Local MongoDB:**
-
-Make sure MongoDB is installed and running:
-
-```bash
-mongod
-```
-
-Use this URL in your code:
-
-```js
-const MONGO_URL = "mongodb://localhost:27017/shopdb";
-```
-
-**Option B — MongoDB Atlas (Cloud):**
-
-1. Go to **[cloud.mongodb.com](https://cloud.mongodb.com)** → create free cluster
-2. Click **Connect** → **Drivers** → copy connection string
-3. Paste in your code:
-
-```js
-const MONGO_URL = "mongodb+srv://user:password@cluster.mongodb.net/shopdb";
-```
-
----
-
-## 🌐 STEP 5 — Setup ngrok (Public URL for Webhook)
-
-ngrok gives your local server a public HTTPS URL so Stripe can send webhook events to it.
-
-**Install ngrok:**
-
-```bash
-npm install -g ngrok
-```
-
-**Create free account at [ngrok.com](https://ngrok.com) then add your auth token:**
-
-```bash
-ngrok config add-authtoken YOUR_AUTH_TOKEN
-```
-
----
-
-## 🪝 STEP 6 — Setup Stripe Webhook
-
-**Start your server first (Terminal 1):**
-
-```bash
-node src/utils/payment/ProductPaymentAndEmail.js
-```
-
-**Start ngrok (Terminal 2):**
-
-```bash
-ngrok http 3000
-```
-
-ngrok prints a URL like:
-
-```
-Forwarding  https://abc123.ngrok-free.app → http://localhost:3000
-```
-
-**Now go to Stripe Dashboard:**
-
-1. Go to **[dashboard.stripe.com/test/webhooks](https://dashboard.stripe.com/test/webhooks)**
-2. Click **Add Endpoint** (or **Add Destination**)
-3. Fill in:
-   - **Endpoint URL:** `https://abc123.ngrok-free.app/stripe/webhook`
-   - **Events:** select `checkout.session.completed`
-   - **Payload style:** Snapshot
-4. Click **Create**
-5. On the detail page → click **Reveal** next to **Signing Secret**
-6. Copy `whsec_xxxxxxxxxxxxxxxx`
-
-Paste it in your code:
-
-```js
-const WEBHOOK_SECRET = "whsec_xxxxxxxxxxxxxxxx";
-```
-
----
-
-## ⚙️ STEP 7 — Final Config in Your File
-
-Open `ProductPaymentAndEmail.js` and fill in all values:
-
-```js
-const STRIPE_SECRET_KEY = "sk_test_xxxxxxxxxxxxxxxx";   // Step 2
-const WEBHOOK_SECRET    = "whsec_xxxxxxxxxxxxxxxx";     // Step 6
-const MONGO_URL         = "mongodb://localhost:27017/shopdb"; // Step 4
-const GMAIL_USER        = "your@gmail.com";             // Step 3
-const GMAIL_PASSWORD    = "abcdefghijklmnop";           // Step 3
-const SUCCESS_URL       = "http://localhost:3000/success";
-```
-
----
-
-## 🚀 STEP 8 — Run the Project
-
-Open **3 terminals:**
-
-**Terminal 1 — Start Server:**
-
+**Terminal 1 — Start server:**
 ```bash
 cd C:\Users\aakas\OneDrive\Desktop\ddvs\ai-voice-agent-backend
-node src/utils/payment/ProductPaymentAndEmail.js
+node src/utils/payment/stripe.js
 ```
 
 Expected output:
@@ -428,19 +382,16 @@ Expected output:
 ```
 
 **Terminal 2 — Start ngrok:**
-
 ```bash
 ngrok http 3000
 ```
 
-**Terminal 3 — Keep open for testing**
-
 ---
 
-## 🧪 STEP 9 — Test Using Postman
+## 🧪 STEP 10 — Test Using Postman
 
-1. Open **Postman**
-2. Create new request:
+1. Open Postman → new request
+2. Set:
    - **Method:** `POST`
    - **URL:** `http://localhost:3000/stripe/create-payment`
 3. Click **Body** → **raw** → **JSON**
@@ -460,8 +411,7 @@ ngrok http 3000
 
 5. Click **Send**
 
-**Expected Response:**
-
+**Expected response:**
 ```json
 {
   "success": true,
@@ -469,53 +419,83 @@ ngrok http 3000
 }
 ```
 
-**Expected Server Logs:**
-
+**Expected server logs:**
 ```
 🛒 your@gmail.com wants to buy: Pro Laptop
 ✅ Created on Stripe: Pro Laptop → price_xxx
-✅ Email sent to your@gmail.com
+✅ Payment link created: https://buy.stripe.com/xxx
+✅ Payment link email sent to your@gmail.com
 ```
 
 ---
 
-## 💳 STEP 10 — Complete a Test Payment
+## 📧 Email 1 — Payment Link Email
 
-1. Check your Gmail inbox (also check **Spam** folder)
-2. Open the email → click **Pay Now**
-3. On Stripe checkout page use test card:
+Sent immediately after calling `/stripe/create-payment`
+
+```
+Subject: Your Payment Link - Pro Laptop
+
+Your Order is Ready! 🛍️
+Price: $999
+[ Pay Now → ]  ← Stripe payment link
+```
+
+---
+
+## 💳 STEP 11 — Complete Test Payment
+
+1. Check your Gmail inbox (check **Spam** too)
+2. Open email → click **Pay Now**
+3. Use Stripe test card:
 
 ```
 Card Number:  4242 4242 4242 4242
-Expiry:       12/26  (any future date)
-CVC:          123    (any 3 digits)
+Expiry:       12/26
+CVC:          123
 Name:         Any name
 ```
 
 4. Click **Pay**
 
-**Expected after payment:**
-
+**Expected server logs after payment:**
 ```
-Server logs:
 📥 Webhook received: checkout.session.completed
 💰 Payment successful: your@gmail.com paid for Pro Laptop
 ✅ Order saved in MongoDB
+✅ Success confirmation email sent to your@gmail.com
 ```
 
 ---
 
-## 🗄️ STEP 11 — Check Orders in MongoDB
+## 📧 Email 2 — Success Confirmation Email
 
+Sent automatically after payment is completed via webhook
+
+```
+Subject: ✅ Payment Confirmed - Pro Laptop
+
+✅ Payment Successful!
+
+Product:      Pro Laptop
+Amount Paid:  $999.00
+Status:       ✅ Confirmed
+
+Thank you for your purchase! 🎉
+```
+
+---
+
+## 🗄️ STEP 12 — Check Orders in MongoDB
+
+**Via MongoDB shell:**
 ```bash
 mongosh
-
 use shopdb
 db.orders.find().pretty()
 ```
 
-Or via API:
-
+**Via API:**
 ```
 GET http://localhost:3000/orders/your@gmail.com
 ```
@@ -524,32 +504,57 @@ GET http://localhost:3000/orders/your@gmail.com
 
 ## 📌 API Endpoints
 
-| Method | URL | Description |
-|--------|-----|-------------|
-| `POST` | `/stripe/create-payment` | Your agent calls this after finding product |
-| `POST` | `/stripe/webhook` | Stripe calls this after payment |
-| `GET`  | `/orders/:email` | Get all orders for a user |
-| `GET`  | `/success` | Redirect page after payment |
+| Method | Endpoint | Description | Called By |
+|--------|----------|-------------|-----------|
+| `POST` | `/stripe/create-payment` | Creates payment link + sends Email 1 | Your agent |
+| `POST` | `/stripe/webhook` | Receives payment confirmation from Stripe | Stripe |
+| `GET` | `/orders/:email` | Get all orders for a user | Your app |
+| `GET` | `/success` | Redirect page after payment | Browser |
+
+---
+
+## 🔄 Full Flow
+
+```
+1. Agent finds product from PDF
+          ↓
+2. POST /stripe/create-payment
+          ↓
+3. Product created on Stripe (if not exists)
+          ↓
+4. Payment link generated
+          ↓
+5. 📧 Email 1 sent → "Your Payment Link - Pro Laptop"
+          ↓
+6. User clicks Pay Now → enters card → pays
+          ↓
+7. Stripe fires webhook → POST /stripe/webhook
+          ↓
+8. Order saved to MongoDB
+          ↓
+9. 📧 Email 2 sent → "✅ Payment Confirmed - Pro Laptop"
+```
 
 ---
 
 ## ❌ Common Errors & Fixes
 
-| Error | Fix |
-|-------|-----|
-| `Cannot find package 'stripe'` | Run `npm install` from project **root** folder |
-| `Invalid login` (email) | Use Gmail App Password, not your Gmail password |
-| `Invalid webhook signature` | Make sure ngrok is running and webhook URL is correct |
-| `MongoDB connection failed` | Make sure `mongod` is running or Atlas URL is correct |
-| Email in spam | Check spam folder, or use a different Gmail account |
-| ngrok URL changed | Update webhook URL on Stripe Dashboard and restart |
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `uri must be a string got undefined` | `.env` file not found | Check `.env` is in root folder, check path in `dotenv.config()` |
+| `Cannot find package 'stripe'` | Packages not installed | Run `npm install` from project root |
+| `Invalid webhook signature` | Wrong `WEBHOOK_SECRET` | Copy the exact `whsec_xxx` from Stripe Dashboard |
+| `Invalid login` (email error) | Wrong Gmail password | Use App Password (16 digits), not your Gmail password |
+| `Authentication failed` (email) | App Password has spaces | Remove spaces from App Password in `.env` |
+| Email goes to spam | Gmail filters | Check spam folder, or use a different Gmail |
+| ngrok URL not working | ngrok not running | Start ngrok with `ngrok http 3000` |
 
 ---
 
 ## ⚠️ Important Notes
 
-1. **ngrok URL changes** every time you restart it — update Stripe webhook URL each time
-2. **Keep all 3 terminals running** while testing
-3. **Webhook secret changes** if you delete and recreate the webhook on Stripe
-4. **Test mode** — use `sk_test_xxx` keys and test card `4242 4242 4242 4242` while developing
-5. **Go live** — swap `sk_test_xxx` → `sk_live_xxx` when ready for production
+1. **Never commit `.env` to GitHub** — add `.env` to `.gitignore`
+2. **ngrok URL changes** every restart — update Stripe webhook URL each time
+3. **Keep both terminals running** — server + ngrok while testing
+4. **Rotate Stripe key** if accidentally pushed to GitHub
+5. **Switch to live keys** (`sk_live_xxx`) when going to production
