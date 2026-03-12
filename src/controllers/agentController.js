@@ -1,7 +1,8 @@
 const Agent = require("../models/Agent");
 const KnowledgeBase = require("../models/KnowledgeBase");
 const KnowledgeChunk = require("../models/KnowledgeChunk");
-const { askGemini, embedGemini } = require("../services/geminiService");
+const { askMistral } = require("../services/mistralService");
+const { embedGemini } = require("../services/geminiService");
 const { retrieveKnowledgeContext } = require("../services/knowledgeBaseService");
 
 const pdfParse = require("pdf-parse");
@@ -321,7 +322,8 @@ Question:
 ${question}
 `;
 
-    const answer = await askGemini(prompt);
+    // const answer = await askGemini(prompt);
+    const answer = await askMistral(prompt);
 
     res.json({ answer });
 
