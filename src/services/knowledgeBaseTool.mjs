@@ -69,6 +69,7 @@ export async function getKnowledgeBaseRuntime(agentId) {
     hasKnowledgeBase: true,
     knowledgeBaseFiles,
     tool,
-    guidance: `This agent has uploaded knowledge base files: ${knowledgeBaseFiles.join(", ")}. For any question that may depend on those documents, call search_knowledge_base first and answer from the returned context. If no relevant context is found, say you do not have that information in the attached documents.`,
+    guidance: `You MUST call the tool "search_knowledge_base" for any question about the uploaded documents (${knowledgeBaseFiles.join(", ")}). 
+Do not answer from your own knowledge. Only answer using the context returned from the tool.`
   };
 }
