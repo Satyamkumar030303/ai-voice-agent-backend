@@ -1,6 +1,6 @@
 import { AutoSubscribe, ServerOptions, cli, defineAgent, voice } from "@livekit/agents";
 import { RoomEvent } from "@livekit/rtc-node";
-import * as google from "@livekit/agents-plugin-google";
+import * as openai from "@livekit/agents-plugin-openai";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { getKnowledgeBaseRuntime } from "./knowledgeBaseTool.mjs";
@@ -10,9 +10,7 @@ const DEFAULT_GREETING = "Hello! This is your AI assistant calling. How can I he
 const DEFAULT_INSTRUCTIONS =
   "You are a phone-based AI assistant. Speak clearly, briefly, and helpfully.";
 
-if (process.env.GEMINI_API_KEY) {
-  process.env.GOOGLE_API_KEY = process.env.GEMINI_API_KEY;
-}
+const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
 const parseJobMetadata = (metadata) => {
   if (!metadata) {
     return {};
@@ -46,9 +44,9 @@ export default defineAgent({
     const deepgram = await import("@livekit/agents-plugin-deepgram");
     const session = new voice.AgentSession({
       stt: new deepgram.STT(),
-      llm: new google.LLM({
-        model: "gemini-2.5-flash-lite",
-        apiKey: process.env.GEMINI_API_KEY,
+      llm: openai.LLM.withGroq({
+        model: GROQ_MODEL,
+        apiKey: process.env.GROQ_API_KEY,
       }),
       tts: new deepgram.TTS({
         model: "aura-asteria-en",

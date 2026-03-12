@@ -213,7 +213,6 @@ User → Backend → Twilio → Phone Call
 
 Satyam Kumar
 
-## stripe payemnt
 # 🛍️ Stripe Payment Agent — Setup & Run Guide
 
 A complete payment system that:
@@ -553,4 +552,4 @@ GET http://localhost:3000/orders/your@gmail.com
 2. **Keep all 3 terminals running** while testing
 3. **Webhook secret changes** if you delete and recreate the webhook on Stripe
 4. **Test mode** — use `sk_test_xxx` keys and test card `4242 4242 4242 4242` while developing
-5. **Go live** — swap `sk_test_xxx` → `sk_live_xxx` when ready for production 
+5. **Go live** — swap `sk_test_xxx` → `sk_live_xxx` when ready for production

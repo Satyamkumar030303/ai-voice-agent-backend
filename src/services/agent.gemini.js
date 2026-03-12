@@ -13,7 +13,7 @@ module.exports = defineAgent({
 
         // 2. Initialize the Google Gemini Text LLM
         const llm = new google.LLM({
-            model: "gemini-2.5-flash-lite",
+            model: "gemini-2.5-flash",
             apiKey: process.env.GOOGLE_API_KEY,
         });
 
