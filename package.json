@@ -7,9 +7,9 @@
     "dev": "nodemon server.js",
     "start:backend": "node server.js",
     "start:agent": "node src/services/agent.mjs dev",
-    "start:backend:log": "powershell -Command \"node server.js *>&1 | Tee-Object -FilePath backend_out.log\"",
-    "start:agent:log": "powershell -Command \"node src/services/agent.mjs dev *>&1 | Tee-Object -FilePath worker_out.log\"",
-    "start:debug": "concurrently \"npm run start:backend:log\" \"npm run start:agent:log\"",
+    "start:backend:log": "node server.js 2>&1",
+    "start:agent:log": "node src/services/agent.mjs dev 2>&1",
+    "start:debug": "concurrently --prefix \"[{name}]\" --names \"backend,agent\" --timestamp-format \"HH:mm:ss\" --prefix-colors \"cyan,yellow\" \"npm run start:backend:log\" \"npm run start:agent:log\"",
     "start": "concurrently \"npm run start:backend\" \"npm run start:agent\"",
     "test": "echo \"No tests specified\""
   },
