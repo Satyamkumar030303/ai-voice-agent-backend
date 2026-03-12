@@ -5,21 +5,22 @@ const HF_EMBEDDING_MODEL =
 const HF_EXPECTED_DIMENSIONS = Number(process.env.HF_EMBEDDING_DIMENSIONS || 384);
 
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 // console.log("API KEY:", process.env.GEMINI_API_KEY);
 
-const model = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash-lite",
-});
+// const model = genAI.getGenerativeModel({
+//   model: "gemini-2.5-flash-lite",
+// });
 
-async function askGemini(prompt) {
-  const result = await model.generateContent(prompt);
-  return result.response.text();
+// async function askGemini(prompt) {
+//   const result = await model.generateContent(prompt);
+//   return result.response.text();
 
 function getDefaultHfEmbeddingUrl(model) {
   return `https://router.huggingface.co/hf-inference/models/${model}/pipeline/feature-extraction`;
 
 }
+
 
 function normalizeHfEmbeddingUrl(url, model) {
   const trimmed = (url || "").trim();
@@ -165,5 +166,5 @@ module.exports = {
   embedGemini,
   askGroq,
   embedWithHuggingFace,
-}
+
 }
