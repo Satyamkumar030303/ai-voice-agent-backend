@@ -5,28 +5,26 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 dotenv.config();
 
-
 const app = express();
 
 // ============================================================
-// ✅ STEP 1: PASTE YOUR KEYS HERE
+// CONFIGURATION — values come from .env file
 // ============================================================
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const WEBHOOK_SECRET    = process.env.WEBHOOK_SECRET;
 const MONGO_URL         = process.env.MONGO_URL;
 const GMAIL_USER        = process.env.GMAIL_USER;
-const GMAIL_PASSWORD    = process.env.GMAIL_PASSWORD; // is App Password
-const SUCCESS_URL       = process.env.SUCCESS_URL;
+const GMAIL_PASSWORD    = process.env.GMAIL_PASSWORD;
+const SUCCESS_URL       = process.env.SUCCESS_URL || "http://localhost:3000/success";
 
 // ============================================================
-// ✅ STEP 2: CONNECT TO MONGODB
+// MONGODB
 // ============================================================
 
 await mongoose.connect(MONGO_URL);
 console.log("✅ MongoDB connected");
 
-// Order Schema — saved when payment is successful
 const Order = mongoose.model("Order", new mongoose.Schema({
   user_email:            { type: String, required: true },
   product_id:            { type: String },
@@ -39,7 +37,7 @@ const Order = mongoose.model("Order", new mongoose.Schema({
 }));
 
 // ============================================================
-// ✅ STEP 3: SETUP STRIPE + EMAIL
+// STRIPE + EMAIL SETUP
 // ============================================================
 
 const stripe = new Stripe(STRIPE_SECRET_KEY);
@@ -58,10 +56,7 @@ const transporter = nodemailer.createTransport({
 // STRIPE FUNCTIONS
 // ============================================================
 
-// Auto create product on Stripe if it doesn't exist yet
 async function getOrCreateStripePrice(product) {
-  // product = { product_id, name, price, description }
-
   const existing = await stripe.products.search({
     query: `metadata["internal_id"]:"${product.product_id}"`,
   });
@@ -76,7 +71,6 @@ async function getOrCreateStripePrice(product) {
     return prices.data[0].id;
   }
 
-  // Create new product + price on Stripe
   const stripeProduct = await stripe.products.create({
     name: product.name,
     description: product.description || "",
@@ -85,7 +79,7 @@ async function getOrCreateStripePrice(product) {
 
   const stripePrice = await stripe.prices.create({
     product: stripeProduct.id,
-    unit_amount: Math.round(product.price * 100), // dollars → cents
+    unit_amount: Math.round(product.price * 100),
     currency: "usd",
   });
 
@@ -93,7 +87,6 @@ async function getOrCreateStripePrice(product) {
   return stripePrice.id;
 }
 
-// Create Stripe payment link
 async function createPaymentLink(stripePriceId, userEmail, productName) {
   const paymentLink = await stripe.paymentLinks.create({
     line_items: [{ price: stripePriceId, quantity: 1 }],
@@ -106,11 +99,14 @@ async function createPaymentLink(stripePriceId, userEmail, productName) {
       product_name: productName,
     },
   });
-  return paymentLink.url; // https://buy.stripe.com/xxx
+  return paymentLink.url;
 }
 
-// Send payment link to user email
-async function sendPaymentEmail(userEmail, paymentUrl, productName, price) {
+// ============================================================
+// EMAIL 1 — Payment Link (sent BEFORE payment)
+// ============================================================
+
+async function sendPaymentLinkEmail(userEmail, paymentUrl, productName, price) {
   await transporter.sendMail({
     from: GMAIL_USER,
     to: userEmail,
@@ -132,10 +128,60 @@ async function sendPaymentEmail(userEmail, paymentUrl, productName, price) {
       </body>
     `,
   });
-  console.log(`✅ Email sent to ${userEmail}`);
+  console.log(`✅ Payment link email sent to ${userEmail}`);
 }
 
-// Save completed order to MongoDB
+// ============================================================
+// EMAIL 2 — Payment Success (sent AFTER payment)
+// ============================================================
+
+async function sendSuccessEmail(userEmail, productName, amount) {
+  const price = (amount / 100).toFixed(2); // cents → dollars
+
+  await transporter.sendMail({
+    from: GMAIL_USER,
+    to: userEmail,
+    subject: `✅ Payment Confirmed - ${productName}`,
+    text: `Your payment of $${price} for ${productName} was successful! Thank you.`,
+    html: `
+      <body style="font-family:Arial,sans-serif; max-width:600px; margin:0 auto;">
+
+        <div style="background:#22c55e; padding:24px; border-radius:8px; text-align:center; margin-bottom:24px;">
+          <h2 style="color:white; margin:0;">✅ Payment Successful!</h2>
+        </div>
+
+        <p style="font-size:16px;">Hi there! Your payment has been confirmed. Here's your order summary:</p>
+
+        <div style="background:#f5f5f5; padding:20px; border-radius:8px; margin:20px 0;">
+          <table style="width:100%; border-collapse:collapse;">
+            <tr style="border-bottom:1px solid #ddd;">
+              <td style="padding:10px 0; color:#666;">Product</td>
+              <td style="padding:10px 0; font-weight:bold; text-align:right;">${productName}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #ddd;">
+              <td style="padding:10px 0; color:#666;">Amount Paid</td>
+              <td style="padding:10px 0; font-weight:bold; text-align:right; color:#22c55e;">$${price}</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 0; color:#666;">Status</td>
+              <td style="padding:10px 0; font-weight:bold; text-align:right; color:#22c55e;">✅ Confirmed</td>
+            </tr>
+          </table>
+        </div>
+
+        <p style="font-size:16px;">Thank you for your purchase! 🎉</p>
+        <p style="color:#888; font-size:12px;">If you have any questions, reply to this email.</p>
+
+      </body>
+    `,
+  });
+  console.log(`✅ Success confirmation email sent to ${userEmail}`);
+}
+
+// ============================================================
+// SAVE ORDER TO MONGODB
+// ============================================================
+
 async function saveOrder(userEmail, productId, productName, amount, sessionId, paymentIntent) {
   await Order.findOneAndUpdate(
     { stripe_session_id: sessionId },
@@ -155,8 +201,8 @@ async function saveOrder(userEmail, productId, productName, amount, sessionId, p
 }
 
 // ============================================================
-// ✅ STEP 4: WEBHOOK — must be BEFORE express.json()
-// Stripe needs raw body to verify the signature
+// WEBHOOK — must be BEFORE express.json()
+// Fires after user completes payment → saves order + sends Email 2
 // ============================================================
 
 app.post("/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
@@ -175,7 +221,6 @@ app.post("/stripe/webhook", express.raw({ type: "application/json" }), async (re
 
   console.log(`📥 Webhook received: ${event.type}`);
 
-  // Payment completed successfully
   if (event.type === "checkout.session.completed") {
     const session       = event.data.object;
     const userEmail     = session.metadata?.user_email;
@@ -185,14 +230,19 @@ app.post("/stripe/webhook", express.raw({ type: "application/json" }), async (re
     const paymentIntent = session.payment_intent;
 
     console.log(`💰 Payment successful: ${userEmail} paid for ${productName}`);
+
+    // 1. Save order to MongoDB
     await saveOrder(userEmail, null, productName, amount, sessionId, paymentIntent);
+
+    // 2. Send success confirmation email
+    await sendSuccessEmail(userEmail, productName, amount);
   }
 
   res.json({ received: true });
 });
 
 // ============================================================
-// ✅ STEP 5: API ROUTES
+// API ROUTES
 // ============================================================
 
 app.use(express.json());
@@ -210,9 +260,14 @@ app.post("/stripe/create-payment", async (req, res) => {
   try {
     console.log(`\n🛒 ${userEmail} wants to buy: ${product.name}`);
 
-    const stripePriceId = await getOrCreateStripePrice(product);   // 1. get/create on Stripe
-    const paymentUrl    = await createPaymentLink(stripePriceId, userEmail, product.name); // 2. payment link
-    await sendPaymentEmail(userEmail, paymentUrl, product.name, product.price);            // 3. send email
+    // 1. Get or create product on Stripe
+    const stripePriceId = await getOrCreateStripePrice(product);
+
+    // 2. Create payment link
+    const paymentUrl = await createPaymentLink(stripePriceId, userEmail, product.name);
+
+    // 3. Send Email 1 — payment link email
+    await sendPaymentLinkEmail(userEmail, paymentUrl, product.name, product.price);
 
     res.json({ success: true, paymentUrl });
 
@@ -223,7 +278,6 @@ app.post("/stripe/create-payment", async (req, res) => {
 });
 
 // Get all orders for a user
-// GET /orders/user@example.com
 app.get("/orders/:email", async (req, res) => {
   try {
     const orders = await Order.find({ user_email: req.params.email }).sort({ created_at: -1 });
@@ -245,14 +299,9 @@ app.get("/success", (req, res) => {
 app.listen(3000, () => {
   console.log("\n🚀 Server running on http://localhost:3000");
   console.log("─────────────────────────────────────────────────────");
-  console.log("POST /stripe/create-payment  → your agent calls this");
+  console.log("POST /stripe/create-payment  → agent calls this");
   console.log("POST /stripe/webhook         → Stripe calls after payment");
   console.log("GET  /orders/:email          → get orders for a user");
   console.log("GET  /success                → redirect page after payment");
   console.log("─────────────────────────────────────────────────────");
-  console.log("\n📌 Open a second terminal and run:");
-  console.log("stripe listen --forward-to localhost:3000/stripe/webhook\n");
 });
-
-
-// stcppyuoiywliepz
