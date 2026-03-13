@@ -1,10 +1,6 @@
 import { llm } from "@livekit/agents";
 import { z } from "zod";
-import { promises as fs } from "node:fs";
-import os from "node:os";
-import path from "node:path";
-
-const TEMP_EMAIL_PATH = path.join(os.tmpdir(), "agent-vox-captured-email.json");
+import { saveEmailForSession, TEMP_EMAIL_PATH } from "./tempEmailStore.mjs";
 
 function normalizeEmail(email) {
   return (email || "").trim().toLowerCase();
@@ -14,7 +10,7 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-export function createEmailCaptureTool() {
+export function createEmailCaptureTool(sessionKey) {
   return llm.tool({
     description:
       "Store the user's spoken email address in a temporary JSON file for later use. Call this only after confirming the email address with the user.",
@@ -44,11 +40,12 @@ export function createEmailCaptureTool() {
         source: "voice-agent",
       };
 
-      await fs.writeFile(TEMP_EMAIL_PATH, JSON.stringify(payload, null, 2), "utf8");
+      await saveEmailForSession(sessionKey, payload);
 
       return {
         stored: true,
         filePath: TEMP_EMAIL_PATH,
+        sessionKey,
         email: normalizedEmail,
       };
     },

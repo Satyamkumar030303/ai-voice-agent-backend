@@ -1,18 +1,16 @@
-import express from "express";
-import paymentController from "./paymentController.js";
+const express = require("express");
+const paymentController = require("./paymentController");
 
 const router = express.Router();
 
-router.post("/stripe/create-payment", paymentController.createpayment);
-// router.post("/stripe/create-payment/tool", paymentController.createpaymentbytool);
-
+router.post("/stripe/webhook", express.raw({ type: "application/json" }), paymentController.handleWebhook);
+router.post("/stripe/create-payment", express.json(), paymentController.createpayment);
 router.get("/orders/:email", paymentController.findorders);
-
-router.get("/success", (req, res) => {
-  res.send("<h1>✅ Payment Successful! Thank you for your purchase.</h1>");
+router.get("/success", (_req, res) => {
+  res.send("<h1>Payment Successful! Thank you for your purchase.</h1>");
 });
 
-export default router;
+module.exports = router;
 
 
 // app.listen(3000, () => {

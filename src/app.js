@@ -6,6 +6,7 @@ const agentRoutes = require("./routes/agentRoutes");
 const outboundRoutes = require("./routes/outboundRoutes");
 const livekitRoutes = require("./routes/livekitRoutes");
 const livekitController = require("./controllers/livekitController");
+const paymentRoutes = require("./utils/Payment/paymentRoute");
 
 const app = express();
 
@@ -14,6 +15,9 @@ app.use(cors());
 
 // Twilio sends application/x-www-form-urlencoded
 app.use(express.urlencoded({ extended: true }));
+
+// Mount payment routes before global JSON parsing so Stripe webhook can use raw body.
+app.use("/api/payments", paymentRoutes);
 
 // For JSON APIs
 app.use(express.json());

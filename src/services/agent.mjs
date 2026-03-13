@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { getKnowledgeBaseRuntime } from "./knowledgeBaseTool.mjs";
 import { createEmailCaptureTool } from "./emailCaptureTool.mjs";
+import { createPaymentLinkTool } from "./paymentLinkTool.mjs";
 
 const AGENT_NAME = process.env.LIVEKIT_AGENT_NAME || "voice-agent";
 const DEFAULT_GREETING = "Hello! This is your AI assistant calling. How can I help you today?";
@@ -29,19 +30,24 @@ export default defineAgent({
   entry: async (ctx) => {
     await ctx.connect(undefined, AutoSubscribe.AUDIO_ONLY);
     console.log(`Agent joining room: ${ctx.room.name}`);
+    const sessionKey = ctx.room.name;
 
     const participant = await ctx.waitForParticipant();
     console.log(`Participant ${participant.identity} connected. Starting voice session...`);
 
     const metadata = parseJobMetadata(ctx.job?.metadata);
     const kbRuntime = await getKnowledgeBaseRuntime(metadata.agentId);
-    const emailCaptureTool = createEmailCaptureTool();
+    const emailCaptureTool = createEmailCaptureTool(sessionKey);
+    const paymentLinkTool = createPaymentLinkTool(sessionKey);
     const instructionsParts = [metadata.systemPrompt || DEFAULT_INSTRUCTIONS];
     if (kbRuntime.guidance) {
       instructionsParts.push(kbRuntime.guidance);
     }
     instructionsParts.push(
       'If the user shares an email address and wants you to remember it for later, confirm the email and then call the tool "capture_email_temp".'
+    );
+    instructionsParts.push(
+      'If the user wants to buy a product and you know the exact product_id, name, and price, call "create_payment_link_from_saved_email". If the email is not saved yet, ask for it first and store it.'
     );
     const instructions = instructionsParts.join("\n\n");
     const greeting = metadata.greeting || DEFAULT_GREETING;
@@ -62,6 +68,7 @@ export default defineAgent({
       instructions,
       tools: {
         capture_email_temp: emailCaptureTool,
+        create_payment_link_from_saved_email: paymentLinkTool,
         ...(kbRuntime.tool
           ? {
               search_knowledge_base: kbRuntime.tool,
