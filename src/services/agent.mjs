@@ -4,6 +4,7 @@ import * as openai from "@livekit/agents-plugin-openai";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { getKnowledgeBaseRuntime } from "./knowledgeBaseTool.mjs";
+import { createEmailCaptureTool } from "./emailCaptureTool.mjs";
 
 const AGENT_NAME = process.env.LIVEKIT_AGENT_NAME || "voice-agent";
 const DEFAULT_GREETING = "Hello! This is your AI assistant calling. How can I help you today?";
@@ -34,10 +35,14 @@ export default defineAgent({
 
     const metadata = parseJobMetadata(ctx.job?.metadata);
     const kbRuntime = await getKnowledgeBaseRuntime(metadata.agentId);
+    const emailCaptureTool = createEmailCaptureTool();
     const instructionsParts = [metadata.systemPrompt || DEFAULT_INSTRUCTIONS];
     if (kbRuntime.guidance) {
       instructionsParts.push(kbRuntime.guidance);
     }
+    instructionsParts.push(
+      'If the user shares an email address and wants you to remember it for later, confirm the email and then call the tool "capture_email_temp".'
+    );
     const instructions = instructionsParts.join("\n\n");
     const greeting = metadata.greeting || DEFAULT_GREETING;
 
@@ -55,11 +60,14 @@ export default defineAgent({
 
     const agent = new voice.Agent({
       instructions,
-      tools: kbRuntime.tool
-        ? {
-            search_knowledge_base: kbRuntime.tool,
-          }
-        : undefined,
+      tools: {
+        capture_email_temp: emailCaptureTool,
+        ...(kbRuntime.tool
+          ? {
+              search_knowledge_base: kbRuntime.tool,
+            }
+          : {}),
+      },
     });
 
     await session.start({
