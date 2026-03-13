@@ -1,3 +1,23 @@
+<<<<<<< HEAD
+# Logs
+*.log
+*.txt
+
+# Specific logs
+backend_out.log
+dev_out.log
+worker_out.log
+ngrok_out.log
+error.log
+out.txt
+error.txt
+
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+=======
 node_modules
 .env
 # Logs
@@ -10,3 +30,4 @@ node_modules
 # Temp exports
 exports*.json
 error*.json
+>>>>>>> 1b56fc9bf5364cfe43539221889d147e1fe0f724

@@ -47,7 +47,7 @@ async function getAgentKnowledgeInfo(agentId) {
 }
 
 async function retrieveKnowledgeContext(agentId, question, options = {}) {
-  const { limit = 5, numCandidates = 100 } = options;
+  const { limit = 8, numCandidates = 200 } = options;
 
   const trimmedQuestion = (question || "").trim();
   if (!trimmedQuestion) {
