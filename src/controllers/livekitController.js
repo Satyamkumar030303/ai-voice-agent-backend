@@ -124,7 +124,9 @@ exports.createOutboundCall = async (req, res) => {
     // Always generate dynamic room server-side
     const targetRoom = `room-${Date.now()}`;
     const participantIdentity = `user-${normalizedPhone.replace(/\+/g, "")}`;
-    const callerId = (fromNumber || process.env.TWILIO_PHONE_NUMBER || "").trim();
+    const callerId = (phoneNumber ||
+       //process.env.TWILIO_PHONE_NUMBER || 
+       "").trim();
 
     if (!callerId) {
       return res.status(400).json({
@@ -140,6 +142,7 @@ exports.createOutboundCall = async (req, res) => {
     console.log(
       `[LiveKit Outbound] Dialing ${normalizedPhone} from ${callerId}, targeting room: ${targetRoom}`
     );
+    
 
     const sipClient = getSipClient();
 
@@ -149,7 +152,7 @@ exports.createOutboundCall = async (req, res) => {
       targetRoom,
       {
         participantIdentity,
-        fromNumber: callerId,
+        phoneNumber: callerId,
       }
     );
 
