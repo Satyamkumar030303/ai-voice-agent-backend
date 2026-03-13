@@ -12,11 +12,11 @@ const app = express();
 // ============================================================
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
-const WEBHOOK_SECRET    = process.env.WEBHOOK_SECRET;
-const MONGO_URL         = process.env.MONGO_URL;
-const GMAIL_USER        = process.env.GMAIL_USER;
-const GMAIL_PASSWORD    = process.env.GMAIL_PASSWORD;
-const SUCCESS_URL       = process.env.SUCCESS_URL || "http://localhost:3000/success";
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+const MONGO_URL = process.env.MONGO_URL;
+const GMAIL_USER = process.env.GMAIL_USER;
+const GMAIL_PASSWORD = process.env.GMAIL_PASSWORD;
+const SUCCESS_URL = process.env.SUCCESS_URL || "http://localhost:3000/success";
 
 // ============================================================
 // MONGODB
@@ -30,16 +30,19 @@ try {
   process.exit(1); // stop server if DB fails
 }
 
-const Order = mongoose.model("Order", new mongoose.Schema({
-  user_email:            { type: String, required: true },
-  product_id:            { type: String },
-  product_name:          { type: String, required: true },
-  amount:                { type: Number, required: true }, // in cents
-  stripe_session_id:     { type: String, unique: true },
-  stripe_payment_intent: { type: String },
-  status:                { type: String, default: "completed" },
-  created_at:            { type: Date, default: Date.now },
-}));
+const Order = mongoose.model(
+  "Order",
+  new mongoose.Schema({
+    user_email: { type: String, required: true },
+    product_id: { type: String },
+    product_name: { type: String, required: true },
+    amount: { type: Number, required: true }, // in cents
+    stripe_session_id: { type: String, unique: true },
+    stripe_payment_intent: { type: String },
+    status: { type: String, default: "completed" },
+    created_at: { type: Date, default: Date.now },
+  }),
+);
 
 // ============================================================
 // STRIPE + EMAIL SETUP
@@ -99,7 +102,6 @@ async function getOrCreateStripePrice(product) {
 
     console.log(`✅ Created on Stripe: ${product.name} → ${stripePrice.id}`);
     return stripePrice.id;
-
   } catch (err) {
     console.error("❌ Stripe product/price error:", err.message);
     throw new Error(`Failed to get or create Stripe price: ${err.message}`);
@@ -122,7 +124,6 @@ async function createPaymentLink(stripePriceId, userEmail, productName) {
 
     console.log(`✅ Payment link created: ${paymentLink.url}`);
     return paymentLink.url;
-
   } catch (err) {
     console.error("❌ Payment link creation failed:", err.message);
     throw new Error(`Failed to create payment link: ${err.message}`);
@@ -157,7 +158,6 @@ async function sendPaymentLinkEmail(userEmail, paymentUrl, productName, price) {
       `,
     });
     console.log(`✅ Payment link email sent to ${userEmail}`);
-
   } catch (err) {
     console.error("❌ Failed to send payment link email:", err.message);
     throw new Error(`Failed to send payment link email: ${err.message}`);
@@ -210,7 +210,6 @@ async function sendSuccessEmail(userEmail, productName, amount) {
       `,
     });
     console.log(`✅ Success confirmation email sent to ${userEmail}`);
-
   } catch (err) {
     console.error("❌ Failed to send success email:", err.message);
     throw new Error(`Failed to send success email: ${err.message}`);
@@ -221,7 +220,14 @@ async function sendSuccessEmail(userEmail, productName, amount) {
 // SAVE ORDER TO MONGODB
 // ============================================================
 
-async function saveOrder(userEmail, productId, productName, amount, sessionId, paymentIntent) {
+async function saveOrder(
+  userEmail,
+  productId,
+  productName,
+  amount,
+  sessionId,
+  paymentIntent,
+) {
   try {
     await Order.findOneAndUpdate(
       { stripe_session_id: sessionId },
@@ -235,10 +241,11 @@ async function saveOrder(userEmail, productId, productName, amount, sessionId, p
         status: "completed",
         created_at: new Date(),
       },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     );
-    console.log(`✅ Order saved in MongoDB: ${userEmail} bought ${productName}`);
-
+    console.log(
+      `✅ Order saved in MongoDB: ${userEmail} bought ${productName}`,
+    );
   } catch (err) {
     console.error("❌ Failed to save order to MongoDB:", err.message);
     throw new Error(`Failed to save order: ${err.message}`);
@@ -250,127 +257,164 @@ async function saveOrder(userEmail, productId, productName, amount, sessionId, p
 // Fires after user completes payment → saves order + sends Email 2
 // ============================================================
 
-app.post("/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
-  let event;
+app.post(
+  "/stripe/webhook",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    let event;
 
-  // Verify webhook signature
-  try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      req.headers["stripe-signature"],
-      WEBHOOK_SECRET
-    );
-  } catch (err) {
-    console.error("❌ Invalid webhook signature:", err.message);
-    return res.status(400).json({ error: "Invalid signature" });
-  }
-
-  console.log(`📥 Webhook received: ${event.type}`);
-
-  if (event.type === "checkout.session.completed") {
-    const session       = event.data.object;
-    const userEmail     = session.metadata?.user_email;
-    const productName   = session.metadata?.product_name;
-    const amount        = session.amount_total;
-    const sessionId     = session.id;
-    const paymentIntent = session.payment_intent;
-
-    // Validate metadata
-    if (!userEmail || !productName) {
-      console.error("❌ Missing metadata in webhook session");
-      return res.status(400).json({ error: "Missing metadata" });
-    }
-
-    console.log(`💰 Payment successful: ${userEmail} paid for ${productName}`);
-
-    // 1. Save order to MongoDB
+    // Verify webhook signature
     try {
-      await saveOrder(userEmail, null, productName, amount, sessionId, paymentIntent);
+      event = stripe.webhooks.constructEvent(
+        req.body,
+        req.headers["stripe-signature"],
+        WEBHOOK_SECRET,
+      );
     } catch (err) {
-      console.error("❌ Order save failed:", err.message);
-      // Still continue to send email even if DB fails
+      console.error("❌ Invalid webhook signature:", err.message);
+      return res.status(400).json({ error: "Invalid signature" });
     }
 
-    // 2. Send success confirmation email
+    console.log(`📥 Webhook received: ${event.type}`);
+
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object;
+      const userEmail = session.metadata?.user_email;
+      const productName = session.metadata?.product_name;
+      const amount = session.amount_total;
+      const sessionId = session.id;
+      const paymentIntent = session.payment_intent;
+
+      // Validate metadata
+      if (!userEmail || !productName) {
+        console.error("❌ Missing metadata in webhook session");
+        return res.status(400).json({ error: "Missing metadata" });
+      }
+
+      console.log(
+        `💰 Payment successful: ${userEmail} paid for ${productName}`,
+      );
+
+      // 1. Save order to MongoDB
+      try {
+        await saveOrder(
+          userEmail,
+          null,
+          productName,
+          amount,
+          sessionId,
+          paymentIntent,
+        );
+      } catch (err) {
+        console.error("❌ Order save failed:", err.message);
+        // Still continue to send email even if DB fails
+      }
+
+      // 2. Send success confirmation email
+      try {
+        await sendSuccessEmail(userEmail, productName, amount);
+      } catch (err) {
+        console.error("❌ Success email failed:", err.message);
+        // Still return 200 to Stripe so it doesn't retry
+      }
+    }
+
+    res.json({ received: true });
+  },
+);
+
+const paymentCroller = {
+  createpayment: async (req, res) => {
+    const { product, userEmail } = req.body;
+
+    // Validate request body
+    if (!product || !userEmail) {
+      return res
+        .status(400)
+        .json({ error: "product and userEmail are required" });
+    }
+
+    if (!product.product_id || !product.name || !product.price) {
+      return res
+        .status(400)
+        .json({ error: "product must have product_id, name and price" });
+    }
+
     try {
-      await sendSuccessEmail(userEmail, productName, amount);
+      console.log(`\n🛒 ${userEmail} wants to buy: ${product.name}`);
+
+      // 1. Get or create product on Stripe
+      const stripePriceId = await getOrCreateStripePrice(product);
+
+      // 2. Create payment link
+      const paymentUrl = await createPaymentLink(
+        stripePriceId,
+        userEmail,
+        product.name,
+      );
+
+      // 3. Send Email 1 — payment link email
+      await sendPaymentLinkEmail(
+        userEmail,
+        paymentUrl,
+        product.name,
+        product.price,
+      );
+
+      res.json({ success: true, paymentUrl });
     } catch (err) {
-      console.error("❌ Success email failed:", err.message);
-      // Still return 200 to Stripe so it doesn't retry
+      console.error("❌ Create payment error:", err.message);
+      res.status(500).json({ error: err.message });
     }
-  }
+  },
+  createpaymentbytool: async (product, userEmail) => {
+    // Validate request body
+    if (!product || !userEmail) {
+      console.log("error in paymentcontroller arguments")
+    }
 
-  res.json({ received: true });
-});
+    if (!product.product_id || !product.name || !product.price) {
+        console.log( "product must have product_id, name and price" );
+    }
 
-// ============================================================
-// API ROUTES
-// ============================================================
+    try {
+      console.log(`\n🛒 ${userEmail} wants to buy: ${product.name}`);
 
-app.use(express.json());
+      // 1. Get or create product on Stripe
+      const stripePriceId = await getOrCreateStripePrice(product);
 
-// Your agent calls this after finding product from PDF
-// POST /stripe/create-payment
-// Body: { product: { product_id, name, price, description }, userEmail: "user@example.com" }
-app.post("/stripe/create-payment", async (req, res) => {
-  const { product, userEmail } = req.body;
+      // 2. Create payment link
+      const paymentUrl = await createPaymentLink(
+        stripePriceId,
+        userEmail,
+        product.name,
+      );
 
-  // Validate request body
-  if (!product || !userEmail) {
-    return res.status(400).json({ error: "product and userEmail are required" });
-  }
+      // 3. Send Email 1 — payment link email
+      await sendPaymentLinkEmail(
+        userEmail,
+        paymentUrl,
+        product.name,
+        product.price,
+      );
 
-  if (!product.product_id || !product.name || !product.price) {
-    return res.status(400).json({ error: "product must have product_id, name and price" });
-  }
+      console.log(`success: true, ${paymentUrl} `);
+    } catch (err) {
+      console.error("❌ Create payment error:", err.message);
+      
+    }
+  },
+  findorders: async (req, res) => {
+    try {
+      const orders = await Order.find({ user_email: req.params.email }).sort({
+        created_at: -1,
+      });
+      res.json({ orders });
+    } catch (err) {
+      console.error("❌ Failed to fetch orders:", err.message);
+      res.status(500).json({ error: "Failed to fetch orders" });
+    }
+  },
+};
 
-  try {
-    console.log(`\n🛒 ${userEmail} wants to buy: ${product.name}`);
-
-    // 1. Get or create product on Stripe
-    const stripePriceId = await getOrCreateStripePrice(product);
-
-    // 2. Create payment link
-    const paymentUrl = await createPaymentLink(stripePriceId, userEmail, product.name);
-
-    // 3. Send Email 1 — payment link email
-    await sendPaymentLinkEmail(userEmail, paymentUrl, product.name, product.price);
-
-    res.json({ success: true, paymentUrl });
-
-  } catch (err) {
-    console.error("❌ Create payment error:", err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Get all orders for a user
-// GET /orders/user@example.com
-app.get("/orders/:email", async (req, res) => {
-  try {
-    const orders = await Order.find({ user_email: req.params.email }).sort({ created_at: -1 });
-    res.json({ orders });
-  } catch (err) {
-    console.error("❌ Failed to fetch orders:", err.message);
-    res.status(500).json({ error: "Failed to fetch orders" });
-  }
-});
-
-// Success page after payment
-app.get("/success", (req, res) => {
-  res.send("<h1>✅ Payment Successful! Thank you for your purchase.</h1>");
-});
-
-// ============================================================
-// START SERVER
-// ============================================================
-
-app.listen(3000, () => {
-  console.log("\n🚀 Server running on http://localhost:3000");
-  console.log("─────────────────────────────────────────────────────");
-  console.log("POST /stripe/create-payment  → agent calls this");
-  console.log("POST /stripe/webhook         → Stripe calls after payment");
-  console.log("GET  /orders/:email          → get orders for a user");
-  console.log("GET  /success                → redirect page after payment");
-  console.log("─────────────────────────────────────────────────────");
-});
+export default paymentCroller;
