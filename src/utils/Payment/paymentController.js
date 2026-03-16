@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const Order = require("../../models/Order");
 const {
   createPaymentAndSendEmail,
   constructWebhookEvent,
@@ -8,11 +8,22 @@ const {
 
 const paymentController = {
   async createpayment(req, res) {
-    const { product, userEmail } = req.body || {};
+    const { product, productId, userEmail, userName, sessionKey, userId } = req.body || {};
 
     try {
-      const result = await createPaymentAndSendEmail({ product, userEmail });
-      return res.json({ success: true, paymentUrl: result.paymentUrl });
+      const result = await createPaymentAndSendEmail({
+        product,
+        productId,
+        userEmail,
+        userName,
+        sessionKey,
+        userId,
+      });
+      return res.json({
+        success: true,
+        paymentUrl: result.paymentUrl,
+        reusedExistingLink: Boolean(result.reusedExistingLink),
+      });
     } catch (error) {
       console.error("Payment create error:", error.message);
       return res.status(500).json({ error: error.message });
@@ -36,7 +47,10 @@ const paymentController = {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
       const userEmail = session.metadata?.user_email;
+      const userName = session.metadata?.user_name || null;
+      const productId = session.metadata?.product_id || null;
       const productName = session.metadata?.product_name;
+      const sessionKey = session.metadata?.session_key || null;
       const amount = session.amount_total;
       const sessionId = session.id;
       const paymentIntent = session.payment_intent;
@@ -46,7 +60,16 @@ const paymentController = {
       }
 
       try {
-        await saveOrder(userEmail, null, productName, amount, sessionId, paymentIntent);
+        await saveOrder({
+          userEmail,
+          userName,
+          productId,
+          productName,
+          amount,
+          sessionId,
+          paymentIntent,
+          sessionKey,
+        });
       } catch (error) {
         console.error("Order save failed:", error.message);
       }
@@ -63,8 +86,7 @@ const paymentController = {
 
   async findorders(req, res) {
     try {
-      const Order = mongoose.models.Order;
-      const orders = await Order.find({ user_email: req.params.email }).sort({ created_at: -1 });
+      const orders = await Order.find({ userEmail: req.params.email }).sort({ createdAt: -1 });
       return res.json({ orders });
     } catch (error) {
       console.error("Failed to fetch orders:", error.message);
