@@ -1,24 +1,31 @@
-import { promises as fs } from "node:fs";
-import os from "node:os";
-import path from "node:path";
+import { createRequire } from "node:module";
 
-const TEMP_EMAIL_PATH = path.join(os.tmpdir(), "agent-vox-captured-email.json");
+const require = createRequire(import.meta.url);
+const mongoose = require("mongoose");
+const SessionEmail = require("../models/sessionEmail");
 
-async function readStore() {
+let mongoConnectPromise = null;
+
+async function ensureMongoConnection() {
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
+
+  if (!process.env.MONGO_URI) {
+    throw new Error("MONGO_URI is required to store session email in MongoDB.");
+  }
+
+  if (!mongoConnectPromise) {
+    mongoConnectPromise = mongoose.connect(process.env.MONGO_URI);
+  }
+
   try {
-    const raw = await fs.readFile(TEMP_EMAIL_PATH, "utf8");
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : {};
+    await mongoConnectPromise;
+    return mongoose.connection;
   } catch (error) {
-    if (error.code === "ENOENT") {
-      return {};
-    }
+    mongoConnectPromise = null;
     throw error;
   }
-}
-
-async function writeStore(store) {
-  await fs.writeFile(TEMP_EMAIL_PATH, JSON.stringify(store, null, 2), "utf8");
 }
 
 export async function saveEmailForSession(sessionKey, payload) {
@@ -26,21 +33,31 @@ export async function saveEmailForSession(sessionKey, payload) {
     throw new Error("sessionKey is required to store email.");
   }
 
-  const store = await readStore();
-  store[sessionKey] = {
-    ...(store[sessionKey] || {}),
-    ...payload,
-  };
-  await writeStore(store);
-  return store[sessionKey];
+  await ensureMongoConnection();
+
+  const doc = await SessionEmail.findOneAndUpdate(
+    { sessionKey },
+    {
+      sessionKey,
+      ...payload,
+    },
+    {
+      upsert: true,
+      new: true,
+      setDefaultsOnInsert: true,
+    }
+  ).lean();
+
+  return doc;
 }
 
 export async function getEmailForSession(sessionKey) {
   if (!sessionKey) {
     return null;
   }
-  const store = await readStore();
-  return store[sessionKey] || null;
+
+  await ensureMongoConnection();
+  return SessionEmail.findOne({ sessionKey }).lean();
 }
 
-export { TEMP_EMAIL_PATH };
+export const TEMP_EMAIL_PATH = "mongodb://SessionEmail";

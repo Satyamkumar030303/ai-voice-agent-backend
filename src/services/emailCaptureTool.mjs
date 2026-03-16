@@ -1,6 +1,6 @@
 import { llm } from "@livekit/agents";
 import { z } from "zod";
-import { saveEmailForSession, TEMP_EMAIL_PATH } from "./tempEmailStore.mjs";
+import { saveEmailForSession,TEMP_EMAIL_PATH }  from "./tempEmailStore.mjs";
 
 function normalizeEmail(email) {
   return (email || "").trim().toLowerCase();
@@ -44,7 +44,7 @@ export function createEmailCaptureTool(sessionKey) {
 
       return {
         stored: true,
-        filePath: TEMP_EMAIL_PATH,
+        storage: TEMP_EMAIL_PATH,
         sessionKey,
         email: normalizedEmail,
       };
